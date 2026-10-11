@@ -22,47 +22,47 @@ Neon PostgreSQL is **not** used: one Supabase Postgres covers configuration, raw
 flowchart LR
   %% Developer Community Pulse — end-to-end architecture (editable Mermaid)
   subgraph PM["Sumit / Product Manager"]
-    PM1([Opens Friday brief])
-    PM2([Edits topics & keywords])
-    PM3([Clicks Collect & generate brief])
-    PM4([Reviews evidence, decides priorities])
+    PM1(["Opens Friday brief"])
+    PM2(["Edits topics & keywords"])
+    PM3(["Clicks Collect & generate brief"])
+    PM4(["Reviews evidence, decides priorities"])
   end
   subgraph VER["Vercel — Scheduler & Hosting"]
-    C1[[Cron daily 01:00 UTC<br/>/api/cron/daily]]
-    C2[[Cron Fri 02:30 UTC = 08:00 IST<br/>/api/cron/weekly]]
-    HOST[Hosts Next.js app & serverless functions]
+    C1[["Cron daily 01:00 UTC<br/>/api/cron/daily"]]
+    C2[["Cron Fri 02:30 UTC = 08:00 IST<br/>/api/cron/weekly"]]
+    HOST["Hosts Next.js app & serverless functions"]
   end
   subgraph FE["Frontend — Next.js / React / Tailwind"]
-    F1[Friday brief: pulse ladder, filters, evidence drawer]
-    F2[Topics & keywords manager]
-    F3[Report history & collection status]
+    F1["Friday brief: pulse ladder, filters, evidence drawer"]
+    F2["Topics & keywords manager"]
+    F3["Report history & collection status"]
   end
   subgraph BE["Backend — Route handlers & pipeline"]
-    B0{Auth: CRON_SECRET / Basic auth<br/>concurrency + idempotency guard}
-    B1[Collect: per keyword × source,<br/>paginate, retry, backoff]
-    B2[Normalize: strip HTML, phrase match,<br/>dedupe source+id & fingerprint]
-    B3[Analyze: batch 10 → Gemini,<br/>zod validate, verify quote verbatim]
-    B4[Deterministic metrics:<br/>unique discussions, Δ, %Δ, trend, sufficiency]
-    B5[Synthesize: Gemini over computed metrics,<br/>drop uncited claims]
-    B6[Store report snapshot + topic_metrics]
+    B0{"Auth: CRON_SECRET / Basic auth<br/>concurrency + idempotency guard"}
+    B1["Collect: per keyword × source,<br/>paginate, retry, backoff"]
+    B2["Normalize: strip HTML, phrase match,<br/>dedupe source+id & fingerprint"]
+    B3["Analyze: batch 10 → Gemini,<br/>zod validate, verify quote verbatim"]
+    B4["Deterministic metrics:<br/>unique discussions, Δ, %Δ, trend, sufficiency"]
+    B5["Synthesize: Gemini over computed metrics,<br/>drop uncited claims"]
+    B6["Store report snapshot + topic_metrics"]
   end
   subgraph EXT["External developer communities (official APIs)"]
-    E1[(Hacker News — Algolia API)]
-    E2[(Stack Overflow — Stack Exchange API)]
-    E3[(GitHub Issues search — optional)]
+    E1[("Hacker News — Algolia API")]
+    E2[("Stack Overflow — Stack Exchange API")]
+    E3[("GitHub Issues search — optional")]
   end
   subgraph GEM["Gemini Flash API"]
-    G1[Structured extraction JSON]
-    G2[Evidence-cited synthesis JSON]
+    G1["Structured extraction JSON"]
+    G2["Evidence-cited synthesis JSON"]
   end
   subgraph SB["Supabase Postgres (RLS on, service role server-only)"]
-    S1[(topics, keywords, sources)]
-    S2[(discussions, discussion_matches)]
-    S3[(pain_points, discussion_analyses)]
-    S4[(reports, topic_metrics, collection_runs)]
+    S1[("topics, keywords, sources")]
+    S2[("discussions, discussion_matches")]
+    S3[("pain_points, discussion_analyses")]
+    S4[("reports, topic_metrics, collection_runs")]
   end
   subgraph GH["GitHub — Version control"]
-    R1[Repository main branch]
+    R1["Repository main branch"]
   end
 
   R1 -- "git push → build & deploy" --> HOST
