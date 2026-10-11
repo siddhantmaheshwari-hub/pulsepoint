@@ -3,9 +3,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 
-const url = process.env.DATABASE_URL;
-if (!url) { console.error('DATABASE_URL is not set'); process.exit(1); }
-const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+const raw = process.env.DATABASE_URL;
+if (!raw) { console.error('DATABASE_URL is not set'); process.exit(1); }
+// Drop libpq-only options (Neon's default string includes channel_binding=require).
+const parsed = new URL(raw.trim());
+for (const k of ['channel_binding', 'gssencmode', 'sslcert', 'sslkey', 'sslcrl', 'sslpassword', 'krbsrvname', 'requiressl']) parsed.searchParams.delete(k);
+const url = parsed.toString();
+const local = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
 const sql = postgres(url, { ssl: local ? false : 'require', max: 1, onnotice: () => {} });
 const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'db', 'migrations');
 

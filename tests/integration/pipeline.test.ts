@@ -90,7 +90,8 @@ describe.skipIf(!URL_)('pipeline on Postgres', () => {
   beforeAll(async () => {
     Object.assign(process.env, { DATABASE_URL: URL_, GEMINI_API_KEY: 'test', GEMINI_MIN_INTERVAL_MS: '0', CRON_SECRET: 'x', DASHBOARD_PASSWORD: 'x', REPORT_TZ_OFFSET_MINUTES: '330' });
     const { default: postgres } = await import('postgres');
-    const admin = postgres(URL_!, { max: 1, onnotice: () => {} });
+    const { normalizeDatabaseUrl } = await import('@/lib/dburl');
+    const admin = postgres(normalizeDatabaseUrl(URL_!), { max: 1, onnotice: () => {} });
     await admin.unsafe('drop schema public cascade; create schema public;');
     await admin.end();
     execSync('node scripts/migrate.mjs', { env: { ...process.env, DATABASE_URL: URL_ }, stdio: 'pipe' });

@@ -1,5 +1,6 @@
 import 'server-only';
 import postgres from 'postgres';
+import { isLocalDatabase, normalizeDatabaseUrl } from './dburl';
 import { env } from './env';
 
 export type Sql = postgres.Sql;
@@ -12,8 +13,8 @@ let client: Sql | null = null;
  */
 export function db(): Sql {
   if (client) return client;
-  const url = env.databaseUrl;
-  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  const url = normalizeDatabaseUrl(env.databaseUrl);
+  const local = isLocalDatabase(url);
   client = postgres(url, {
     ssl: local ? false : 'require',
     max: 5,
