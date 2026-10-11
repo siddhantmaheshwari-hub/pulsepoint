@@ -1,0 +1,18 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html { background: #F3F4F1; }
+body { @apply bg-paper text-ink font-sans antialiased; font-feature-settings: 'tnum' 1; }
+a { @apply text-steel underline-offset-2; }
+a:hover { @apply underline; }
+:focus-visible { outline: 2px solid #34537A; outline-offset: 2px; border-radius: 3px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.btn { @apply inline-flex items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-sm font-medium text-ink hover:border-steel disabled:opacity-50; }
+.btn-primary { @apply border-steel bg-steel text-white hover:bg-[#2b4566]; }
+.input { @apply rounded-md border border-line bg-panel px-2.5 py-1.5 text-sm focus:border-steel focus:outline-none; }
+.h-section { @apply text-[15px] font-semibold text-ink; }
