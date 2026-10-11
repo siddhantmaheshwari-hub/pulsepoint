@@ -1,6 +1,6 @@
 # Developer Community Pulse
 
-A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in Supabase, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 08:00 IST.
+A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in a Neon Postgres database, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 08:00 IST.
 
 - Numbers (counts, Δ, %Δ, trends) are computed by code, never by the model.
 - Quotes are displayed only when verified verbatim against the source text.
@@ -10,14 +10,18 @@ A weekly developer-community intelligence brief for a code review automation sta
 Docs: [Nine Checks](docs/NINE_CHECKS.md) · [Components Map](docs/COMPONENTS_MAP.md) · [Research](docs/RESEARCH.md) · [Mermaid source](docs/architecture.mmd)
 
 ## Stack
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Supabase Postgres · Gemini Flash REST API · Vercel (hosting + Cron) · GitHub.
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Neon Postgres (`postgres.js` driver) · Gemini Flash REST API · Vercel (hosting + Cron) · GitHub.
 
 ## Setup
 
-### 1. Supabase
-1. Create a project at supabase.com.
-2. SQL Editor → run `supabase/migrations/0001_schema.sql`, then `0002_seed.sql`.
-3. Project Settings → API: copy the **Project URL** and the **service_role** key (server-only; never expose it to the browser or prefix it with `NEXT_PUBLIC_`).
+### 1. Neon
+1. Create a project at neon.tech (or in Vercel → Storage → Neon, which also adds `DATABASE_URL` to your project automatically).
+2. Copy the **pooled** connection string (host contains `-pooler`, ends with `?sslmode=require`). Keep it server-side; never prefix it with `NEXT_PUBLIC_`.
+3. Create the tables and starter keywords:
+   ```bash
+   DATABASE_URL='postgresql://…' npm run db:migrate
+   ```
+   The runner records applied files in `schema_migrations`, so running it again is safe. (Alternatively paste `db/migrations/0001_schema.sql` then `0002_seed.sql` into Neon's SQL Editor.)
 
 ### 2. Gemini
 Create an API key at Google AI Studio. Default model: `gemini-2.5-flash` (override with `GEMINI_MODEL` if a newer Flash model is available to your key).
@@ -33,8 +37,7 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 ### 4. Environment variables
 | Variable | Required | Notes |
 |---|---|---|
-| `SUPABASE_URL` | yes | |
-| `SUPABASE_SERVICE_ROLE_KEY` | yes | Server-only |
+| `DATABASE_URL` | yes | Neon pooled connection string; server-only |
 | `GEMINI_API_KEY` | yes | |
 | `GEMINI_MODEL` | no | default `gemini-2.5-flash` |
 | `GEMINI_MIN_INTERVAL_MS` | no | default 4000 (free-tier friendly) |
@@ -61,6 +64,13 @@ Verify: open the URL, log in, run once manually, then check **Collection status*
 ```bash
 npm test          # 33 unit tests: trend math, zero baselines, windows, dedupe, mention counting,
                   # quote verification, malformed AI output, uncited-claim removal, metrics aggregation
+                  # (+5 integration tests when TEST_DATABASE_URL is set)
+TEST_DATABASE_URL=postgres://… npm run test:integration
+                  # Runs the real pipeline SQL end to end against Postgres with community APIs and Gemini
+                  # faked: collection, cross-post dedupe, retry after malformed AI output, quote rejection,
+                  # exact weekly counts/trends, uncited-claim removal, source-failure reporting, idempotent
+                  # Friday report, concurrency guard, keyword management, history endpoint.
+                  # WARNING: drops and recreates the public schema — use a throwaway database or a Neon branch.
 npm run typecheck
 npm run lint
 npm run build
@@ -77,7 +87,8 @@ npm run build
 - **Bucketing date:** the first matching activity of a thread. Late-arriving data is recomputed on each report; revisions to the previous week are disclosed while stored snapshots stay unchanged.
 
 ## Security
-- Browser never talks to Supabase; RLS is enabled with no public policies; service-role key is server-only (`server-only` imports).
+- The browser never connects to the database. `DATABASE_URL` is read only in server modules (`server-only` imports); all SQL is parameterized by the driver.
+- Each analysis batch and each report snapshot is written in a single transaction.
 - Cron routes require `CRON_SECRET`; everything else sits behind Basic auth; mutations are blocked without a password.
 - Community text is stripped of HTML, rendered as plain text, and fenced in prompts with an instruction to ignore embedded instructions.
 - External links use `rel="noopener noreferrer nofollow"`.
@@ -86,5 +97,6 @@ npm run build
 - Reddit is not integrated (OAuth registration and commercial-use terms). Discord/Slack communities are out of scope.
 - A long-running thread is counted in the week it first matched; new comments on an already-analyzed thread are not re-analyzed.
 - Weekly counts for a niche keyword set may be small; read sufficiency labels before acting on a trend.
+- Neon's free tier suspends idle compute; the first query after a pause takes a moment longer (the daily cron keeps it warm on weekdays).
 - Vercel Hobby is for non-commercial use and limits each cron to once per day; a company tool should use Pro.
-- Single-user Basic auth; add Supabase Auth if more people need access.
+- Single-user Basic auth; add an auth provider (e.g. Auth.js) if more people need access.

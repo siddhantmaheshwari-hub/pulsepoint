@@ -1,6 +1,6 @@
 import 'server-only';
 
-const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GEMINI_API_KEY', 'CRON_SECRET', 'DASHBOARD_PASSWORD'] as const;
+const REQUIRED = ['DATABASE_URL', 'GEMINI_API_KEY', 'CRON_SECRET', 'DASHBOARD_PASSWORD'] as const;
 
 export function missingEnv(): string[] {
   return REQUIRED.filter((k) => !process.env[k]);
@@ -13,8 +13,7 @@ function req(name: string): string {
 }
 
 export const env = {
-  get supabaseUrl() { return req('SUPABASE_URL'); },
-  get supabaseServiceKey() { return req('SUPABASE_SERVICE_ROLE_KEY'); },
+  get databaseUrl() { return req('DATABASE_URL'); },
   get geminiKey() { return req('GEMINI_API_KEY'); },
   get geminiModel() { return process.env.GEMINI_MODEL || 'gemini-2.5-flash'; },
   get geminiMinIntervalMs() { return Number(process.env.GEMINI_MIN_INTERVAL_MS ?? 4000); },

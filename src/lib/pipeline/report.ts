@@ -1,57 +1,59 @@
 import 'server-only';
-import { db, fetchAll, must } from '../db';
+import type postgres from 'postgres';
+import { db } from '../db';
 import { env } from '../env';
 import { geminiJson } from '../gemini';
 import { buildMetrics, type AnalyzedRow, type PainPointInfo } from '../metrics';
 import { validateSynthesis } from '../schemas';
 import { truncate } from '../text';
-import type { SourceId, Synthesis, TopicMetricRow } from '../types';
+import type { Synthesis, TopicMetricRow } from '../types';
 import { reportWindows } from '../windows';
 import { configSnapshot, loadConfig } from './config';
 import { ANALYSIS_VERSION, SYNTHESIS_SCHEMA, SYNTHESIS_SYSTEM } from './prompts';
 
-interface JoinedRow {
-  discussion_id: string; is_relevant: boolean; kind: AnalyzedRow['kind']; pain_point_key: string | null; topic_slug: string | null;
-  resolution_status: AnalyzedRow['resolution_status']; evidence_quote: string | null; evidence_verified: boolean; confidence: number;
-  existing_workaround: string | null;
-  discussions: { source_id: SourceId; title: string; url: string; created_at_source: string; score: number | null };
-}
+const J = (v: unknown) => db().json(v as postgres.JSONValue);
 
-export async function generateReport(runId: string, trigger: 'cron_weekly' | 'manual', errors: { stage: string; message: string }[], now = new Date()) {
+type SourceStats = Record<string, { failures: number; requests: number }>;
+
+export async function generateReport(runId: string, trigger: 'cron_weekly' | 'manual', errors: { stage: string; message: string }[], liveSources: SourceStats = {}, now = new Date()) {
+  const sql = db();
   const w = reportWindows(now, env.tzOffsetMinutes);
-  const [ps, ce] = [w.previousStart.toISOString(), w.currentEnd.toISOString()];
-  const [cs] = [w.currentStart.toISOString()];
+  const ps = w.previousStart.toISOString(), cs = w.currentStart.toISOString(), ce = w.currentEnd.toISOString();
 
-  const joined = await fetchAll<JoinedRow>((from, to) => db().from('discussion_analyses')
-    .select('discussion_id, is_relevant, kind, pain_point_key, topic_slug, resolution_status, evidence_quote, evidence_verified, confidence, existing_workaround, discussions!inner(source_id, title, url, created_at_source, score, duplicate_of)')
-    .eq('analysis_version', ANALYSIS_VERSION).gte('discussions.created_at_source', ps).lt('discussions.created_at_source', ce).is('discussions.duplicate_of', null)
-    .order('discussion_id').range(from, to) as unknown as PromiseLike<{ data: JoinedRow[] | null; error: { message: string } | null }>, 'load analyses');
+  const rows = await sql<AnalyzedRow[]>`
+    select a.discussion_id, a.is_relevant, a.kind, a.pain_point_key, a.topic_slug, a.resolution_status,
+           a.evidence_quote, a.evidence_verified, a.confidence, a.existing_workaround,
+           d.source_id, d.title, d.url, d.created_at_source, d.score
+    from discussion_analyses a join discussions d on d.id = a.discussion_id
+    where a.analysis_version = ${ANALYSIS_VERSION} and d.duplicate_of is null
+      and d.created_at_source >= ${ps} and d.created_at_source < ${ce}`;
 
-  const rows: AnalyzedRow[] = joined.map((j) => ({ ...j, confidence: Number(j.confidence), ...j.discussions }));
   const keys = [...new Set(rows.map((r) => r.pain_point_key).filter(Boolean))] as string[];
   const info = new Map<string, PainPointInfo>();
-  for (let i = 0; i < keys.length; i += 200) {
-    const pp = must(await db().from('pain_points').select('key, label, first_seen_at, last_seen_at').in('key', keys.slice(i, i + 200)), 'load pain points') as ({ key: string } & PainPointInfo)[];
+  if (keys.length) {
+    const pp = await sql<({ key: string } & PainPointInfo)[]>`select key, label, first_seen_at, last_seen_at from pain_points where key = any(${sql.array(keys)}::text[])`;
     for (const p of pp) info.set(p.key, p);
   }
-  const metrics = buildMetrics(rows, w, info);
+  const metrics = buildMetrics([...rows], w, info);
 
   // Deterministic totals
-  const count = async (q: PromiseLike<{ count: number | null; error: { message: string } | null }>, what: string) => { const r = await q; if (r.error) throw new Error(`${what}: ${r.error.message}`); return r.count ?? 0; };
-  const collectedCur = await count(db().from('discussions').select('id', { count: 'exact', head: true }).is('duplicate_of', null).gte('created_at_source', cs).lt('created_at_source', ce), 'count collected');
-  const pendingWindow = await count(db().from('discussions').select('id', { count: 'exact', head: true }).is('duplicate_of', null).in('analysis_status', ['pending', 'failed']).gte('created_at_source', ps).lt('created_at_source', ce), 'count pending');
-  const dupesCur = await count(db().from('discussions').select('id', { count: 'exact', head: true }).not('duplicate_of', 'is', null).gte('created_at_source', cs).lt('created_at_source', ce), 'count duplicates');
-  const mentionRows = await fetchAll<{ mention_count: number }>((from, to) => db().from('discussion_matches').select('mention_count, discussions!inner(created_at_source, duplicate_of)').gte('discussions.created_at_source', cs).lt('discussions.created_at_source', ce).is('discussions.duplicate_of', null).range(from, to) as unknown as PromiseLike<{ data: { mention_count: number }[] | null; error: { message: string } | null }>, 'load mentions');
+  const [c] = await sql<{ collected: number; pending: number; dupes: number; mentions: number }[]>`
+    select
+      (select count(*)::int from discussions where duplicate_of is null and created_at_source >= ${cs} and created_at_source < ${ce}) as collected,
+      (select count(*)::int from discussions where duplicate_of is null and analysis_status in ('pending','failed') and created_at_source >= ${ps} and created_at_source < ${ce}) as pending,
+      (select count(*)::int from discussions where duplicate_of is not null and created_at_source >= ${cs} and created_at_source < ${ce}) as dupes,
+      (select coalesce(sum(m.mention_count), 0)::int from discussion_matches m join discussions d on d.id = m.discussion_id
+         where d.duplicate_of is null and d.created_at_source >= ${cs} and d.created_at_source < ${ce}) as mentions`;
 
   const curRows = rows.filter((r) => Date.parse(r.created_at_source) >= w.currentStart.getTime());
   const totals = {
-    discussions_collected: collectedCur,
+    discussions_collected: c.collected,
     discussions_analyzed: curRows.length,
     relevant_discussions: curRows.filter((r) => r.is_relevant).length,
     pain_discussions: metrics.reduce((a, m) => a + m.current_count, 0),
     pain_discussions_previous: metrics.reduce((a, m) => a + m.previous_count, 0),
-    keyword_mentions: mentionRows.reduce((a, m) => a + m.mention_count, 0),
-    duplicates_excluded: dupesCur,
+    keyword_mentions: c.mentions,
+    duplicates_excluded: c.dupes,
     pain_points_tracked: metrics.filter((m) => m.current_count > 0).length,
     rising: metrics.filter((m) => m.trend === 'rising').length,
     declining: metrics.filter((m) => m.trend === 'declining').length,
@@ -60,27 +62,27 @@ export async function generateReport(runId: string, trigger: 'cron_weekly' | 'ma
   };
 
   // Data quality & comparability
-  const cfg = await loadConfig();
-  const snapshot = configSnapshot(cfg);
-  const prevReport = must(await db().from('reports').select('id, config_snapshot, totals').eq('period_end', w.previousEnd.toISOString()).order('version', { ascending: false }).limit(1), 'load previous report') as { id: string; config_snapshot: { keywords?: string[] }; totals: { pain_discussions?: number } }[];
-  const runs = must(await db().from('collection_runs').select('started_at, stats, errors').gte('started_at', ps).order('started_at'), 'load runs') as { started_at: string; stats: { collect?: { sources?: Record<string, { failures: number; requests: number }> } }; errors: { source?: string }[] }[];
-  const sourceFailures: Record<string, { failed_requests: number; requests: number }> = {};
-  for (const run of runs) for (const [s, v] of Object.entries(run.stats?.collect?.sources ?? {})) {
-    const acc = (sourceFailures[s] ??= { failed_requests: 0, requests: 0 });
+  const snapshot = configSnapshot(await loadConfig());
+  const [prevReport] = await sql<{ config_snapshot: { keywords?: string[] }; totals: { pain_discussions?: number } }[]>`
+    select config_snapshot, totals from reports where period_end = ${w.previousEnd.toISOString()} order by version desc limit 1`;
+  // Finished runs in the window, plus the run in progress (its stats are not stored until it ends).
+  const runs = await sql<{ stats: { collect?: { sources?: SourceStats } } }[]>`
+    select stats from collection_runs where started_at >= ${ps} and id <> ${runId}`;
+  const sourceHealth: Record<string, { failed_requests: number; requests: number }> = {};
+  for (const src of [...runs.map((r) => r.stats?.collect?.sources ?? {}), liveSources]) for (const [s, v] of Object.entries(src)) {
+    const acc = (sourceHealth[s] ??= { failed_requests: 0, requests: 0 });
     acc.failed_requests += v.failures; acc.requests += v.requests;
   }
-  const prevKw = prevReport[0]?.config_snapshot?.keywords;
-  const added = prevKw ? snapshot.keywords.filter((k) => !prevKw.includes(k)) : [];
-  const removed = prevKw ? prevKw.filter((k) => !snapshot.keywords.includes(k)) : [];
-  const priorPain = prevReport[0]?.totals?.pain_discussions;
+  const prevKw = prevReport?.config_snapshot?.keywords;
+  const priorPain = prevReport?.totals?.pain_discussions;
   const dataQuality = {
     analysis_coverage: totals.discussions_collected ? Math.round((totals.discussions_analyzed / totals.discussions_collected) * 100) / 100 : null,
-    unanalyzed_in_window: pendingWindow,
-    collection_runs_in_window: runs.length,
-    source_health: sourceFailures,
-    keywords_added_since_last_report: added,
-    keywords_removed_since_last_report: removed,
-    has_previous_report: Boolean(prevReport[0]),
+    unanalyzed_in_window: c.pending,
+    collection_runs_in_window: runs.length + 1,
+    source_health: sourceHealth,
+    keywords_added_since_last_report: prevKw ? snapshot.keywords.filter((k) => !prevKw.includes(k)) : [],
+    keywords_removed_since_last_report: prevKw ? prevKw.filter((k) => !snapshot.keywords.includes(k)) : [],
+    has_previous_report: Boolean(prevReport),
     previous_week_revised: priorPain !== undefined && priorPain !== totals.pain_discussions_previous ? { was: priorPain, now: totals.pain_discussions_previous } : null,
     insufficient_points: metrics.filter((m) => m.sufficiency === 'insufficient').length,
     low_confidence_points: metrics.filter((m) => (m.avg_confidence ?? 0) < 0.5 && m.current_count > 0).length,
@@ -99,17 +101,22 @@ export async function generateReport(runId: string, trigger: 'cron_weekly' | 'ma
     }
   }
 
-  const latest = must(await db().from('reports').select('version').eq('period_end', ce).order('version', { ascending: false }).limit(1), 'load version') as { version: number }[];
-  const report = must(await db().from('reports').insert({
-    period_start: cs, period_end: ce, prev_period_start: ps, prev_period_end: w.previousEnd.toISOString(),
-    version: (latest[0]?.version ?? 0) + 1, trigger, status: synthesis ? 'complete' : 'complete_without_synthesis', run_id: runId,
-    totals, synthesis, data_quality: dataQuality, config_snapshot: snapshot, analysis_version: ANALYSIS_VERSION, model: env.geminiModel,
-  }).select('id').single(), 'save report') as { id: string };
+  // Store snapshot + metrics atomically; version increments per period.
+  const reportId = await sql.begin(async (tx) => {
+    const [{ v }] = await tx<{ v: number }[]>`select coalesce(max(version), 0)::int + 1 as v from reports where period_end = ${ce}`;
+    const [rep] = await tx<{ id: string }[]>`insert into reports ${tx({
+      period_start: cs, period_end: ce, prev_period_start: ps, prev_period_end: w.previousEnd.toISOString(),
+      version: v, trigger, status: synthesis ? 'complete' : 'complete_without_synthesis', run_id: runId,
+      totals: J(totals), synthesis: synthesis ? J(synthesis) : null, data_quality: J(dataQuality), config_snapshot: J(snapshot),
+      analysis_version: ANALYSIS_VERSION, model: env.geminiModel,
+    })} returning id`;
+    const metricRows = metrics.map((m) => ({ report_id: rep.id, ...m, by_source: J(m.by_source), evidence: J(m.evidence) }));
+    for (let i = 0; i < metricRows.length; i += 200) await tx`insert into topic_metrics ${tx(metricRows.slice(i, i + 200))}`;
+    return rep.id;
+  });
 
-  const metricRows = metrics.map((m) => ({ report_id: report.id, ...m }));
-  for (let i = 0; i < metricRows.length; i += 200) must(await db().from('topic_metrics').insert(metricRows.slice(i, i + 200)), 'save metrics');
-  await notify(report.id, totals, synthesis, w.currentEnd).catch((e) => errors.push({ stage: 'notify', message: (e as Error).message }));
-  return { reportId: report.id, metrics: metrics.length, synthesized: Boolean(synthesis) };
+  await notify(reportId, totals, synthesis, w.currentEnd).catch((e) => errors.push({ stage: 'notify', message: (e as Error).message }));
+  return { reportId, metrics: metrics.length, synthesized: Boolean(synthesis) };
 }
 
 function synthesisPrompt(top: TopicMetricRow[], dq: object): string {
@@ -127,7 +134,7 @@ function synthesisPrompt(top: TopicMetricRow[], dq: object): string {
 async function notify(reportId: string, totals: { pain_discussions: number; rising: number; new: number }, s: Synthesis | null, end: Date) {
   if (!env.slackWebhook) return;
   const link = env.appUrl ? `${env.appUrl}/?report=${reportId}` : '';
-  const text = `*Developer Community Pulse — week ending ${end.toISOString().slice(0, 10)}*\n${s?.headline ?? 'Brief generated (AI summary unavailable).'}\n${totals.pain_discussions} pain discussions · ${totals.rising} rising · ${totals.new} new${link ? `\n<${link}|Open the brief>` : ''}`;
+  const text = `*Developer Community Pulse — week ending ${new Date(end.getTime() - 1).toISOString().slice(0, 10)}*\n${s?.headline ?? 'Brief generated (AI summary unavailable).'}\n${totals.pain_discussions} pain discussions · ${totals.rising} rising · ${totals.new} new${link ? `\n<${link}|Open the brief>` : ''}`;
   const res = await fetch(env.slackWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
   if (!res.ok) throw new Error(`Slack webhook HTTP ${res.status}`);
 }

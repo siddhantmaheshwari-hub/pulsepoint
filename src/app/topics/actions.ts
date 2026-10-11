@@ -1,7 +1,7 @@
 'use server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { db } from '@/lib/db';
+import { db, isUniqueViolation } from '@/lib/db';
 import { slugify } from '@/lib/text';
 
 // Server actions run behind the Basic-auth middleware (POST requests require the dashboard password).
@@ -19,34 +19,42 @@ export async function addTopic(_: ActionState, form: FormData): Promise<ActionSt
   if (!p.success) return fail(p.error.issues[0].message);
   const slug = slugify(p.data.name);
   if (slug.length < 2) return fail('Use letters or numbers in the topic name');
-  const { error } = await db().from('topics').insert({ slug, name: p.data.name, description: p.data.description ?? null });
-  return error ? fail(error.code === '23505' ? 'A topic with this name already exists' : error.message) : done(`Added topic “${p.data.name}”`);
+  try {
+    await db()`insert into topics (slug, name, description) values (${slug}, ${p.data.name}, ${p.data.description ?? null})`;
+  } catch (e) {
+    return fail(isUniqueViolation(e) ? 'A topic with this name already exists' : 'Could not save the topic. Try again.');
+  }
+  return done(`Added topic “${p.data.name}”`);
 }
 
 export async function addKeyword(_: ActionState, form: FormData): Promise<ActionState> {
   const p = z.object({ topicId: uuid, term }).safeParse({ topicId: form.get('topicId'), term: form.get('term') });
   if (!p.success) return fail(p.error.issues[0].message);
-  const { error } = await db().from('keywords').insert({ topic_id: p.data.topicId, term: p.data.term });
-  return error ? fail(error.code === '23505' ? 'This keyword already exists in the topic' : error.message) : done(`Added “${p.data.term}”. It will be backfilled 15 days on the next collection.`);
+  try {
+    await db()`insert into keywords (topic_id, term) values (${p.data.topicId}, ${p.data.term})`;
+  } catch (e) {
+    return fail(isUniqueViolation(e) ? 'This keyword already exists in the topic' : 'Could not save the keyword. Try again.');
+  }
+  return done(`Added “${p.data.term}”. It will be backfilled 15 days on the next collection.`);
 }
 
 export async function toggleKeyword(form: FormData) {
   const p = z.object({ id: uuid, active: z.enum(['true', 'false']) }).safeParse({ id: form.get('id'), active: form.get('active') });
   if (!p.success) return;
-  await db().from('keywords').update({ is_active: p.data.active === 'true', updated_at: new Date().toISOString() }).eq('id', p.data.id);
+  await db()`update keywords set is_active = ${p.data.active === 'true'}, updated_at = now() where id = ${p.data.id}`;
   revalidatePath('/topics');
 }
 
 export async function toggleTopic(form: FormData) {
   const p = z.object({ id: uuid, active: z.enum(['true', 'false']) }).safeParse({ id: form.get('id'), active: form.get('active') });
   if (!p.success) return;
-  await db().from('topics').update({ is_active: p.data.active === 'true', updated_at: new Date().toISOString() }).eq('id', p.data.id);
+  await db()`update topics set is_active = ${p.data.active === 'true'}, updated_at = now() where id = ${p.data.id}`;
   revalidatePath('/topics');
 }
 
 export async function toggleSource(form: FormData) {
   const p = z.object({ id: z.enum(['hackernews', 'stackoverflow', 'github']), enabled: z.enum(['true', 'false']) }).safeParse({ id: form.get('id'), enabled: form.get('enabled') });
   if (!p.success) return;
-  await db().from('sources').update({ is_enabled: p.data.enabled === 'true' }).eq('id', p.data.id);
+  await db()`update sources set is_enabled = ${p.data.enabled === 'true'} where id = ${p.data.id}`;
   revalidatePath('/topics');
 }

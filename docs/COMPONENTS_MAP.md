@@ -1,7 +1,7 @@
 # Components Map — Developer Community Pulse
 
 Stages: **TRIGGER → INPUT → CONTEXT → PROCESSING → OUTPUT** (following the FlixMatch map, AI Basics p.33).
-Neon PostgreSQL is **not** used: one Supabase Postgres covers configuration, raw data, analyses and snapshots at this volume; a second database would add cost and a consistency problem with no requirement driving it.
+**Database: Neon Postgres** (replaces Supabase; clearance confirmed). One database covers configuration, raw data, analyses and snapshots, so there is no second database to keep consistent. The app connects server-side with `postgres.js` over Neon's pooled connection string.
 
 ## Swimlane map (lane × stage)
 
@@ -12,7 +12,7 @@ Neon PostgreSQL is **not** used: one Supabase Postgres covers configuration, raw
 | **Backend / Orchestration** | | Verifies `CRON_SECRET` / Basic auth; concurrency & idempotency guard; creates `collection_runs` row | Normalizes, strips HTML, exact-phrase match, dedupes (source+id, fingerprint) | Validates Gemini JSON (zod), verifies quotes verbatim, computes counts/Δ/%Δ/trend/sufficiency, drops uncited AI claims | Writes report snapshot; optional Slack notification |
 | **External communities** | | HN Algolia & Stack Exchange (GitHub optional) return discussions for each keyword | | | Original threads linked from evidence |
 | **Gemini Flash API** | | | | ① classify discussions → structured JSON ② synthesize findings from computed metrics | |
-| **Supabase** | | Active topics, keywords, sources read | Upsert discussions + keyword mentions; pain-point catalog | Store analyses, pain points, topic_metrics | Reports & history read by frontend |
+| **Neon Postgres** | | Active topics, keywords, sources read | Upsert discussions + keyword mentions; pain-point catalog | Store analyses, pain points, topic_metrics | Reports & history read by frontend |
 | **Vercel** | Cron daily 01:00 UTC (collect+analyze); Fri 02:30 UTC = 08:00 IST (brief) | | | | Hosts app and functions |
 | **GitHub** | `git push` → Vercel build & deploy | | | | |
 
@@ -55,7 +55,7 @@ flowchart LR
     G1["Structured extraction JSON"]
     G2["Evidence-cited synthesis JSON"]
   end
-  subgraph SB["Supabase Postgres (RLS on, service role server-only)"]
+  subgraph SB["Neon Postgres (server-only connection via DATABASE_URL)"]
     S1[("topics, keywords, sources")]
     S2[("discussions, discussion_matches")]
     S3[("pain_points, discussion_analyses")]
@@ -95,16 +95,16 @@ flowchart LR
 
 | Component (course part) | Implementation | Responsibilities | Inputs | Outputs | Connects to |
 |---|---|---|---|---|---|
-| **Frontend** | `src/app/*`, `src/components/*` (Next.js App Router, React, Tailwind) | Friday brief, filters (source/topic/trend/underserved), evidence drawer with weekly history, report history, collection status, topic/keyword management, manual run | Report snapshots, metrics, runs, topics (server-rendered) | User actions: run requests, keyword edits | Backend (route handlers, server actions); never Supabase directly |
-| **Backend** | `src/lib/pipeline/*`, `src/app/api/*`, `src/middleware.ts` | Auth, orchestration with time budget, collection, normalization, dedupe, Gemini calls, validation, deterministic metrics, report storage, notifications | Cron/manual triggers, config, API responses, model JSON | Rows in Supabase, JSON run summaries | All other components |
-| **Database** | Supabase Postgres, `supabase/migrations/*.sql` | Source of truth for config, discussions, mentions, analyses, pain-point catalog, immutable report snapshots, run logs; RLS on with no public policies | Upserts/inserts from backend | Query results to backend | Backend only (service-role key server-side) |
+| **Frontend** | `src/app/*`, `src/components/*` (Next.js App Router, React, Tailwind) | Friday brief, filters (source/topic/trend/underserved), evidence drawer with weekly history, report history, collection status, topic/keyword management, manual run | Report snapshots, metrics, runs, topics (server-rendered) | User actions: run requests, keyword edits | Backend (route handlers, server actions); never Neon directly |
+| **Backend** | `src/lib/pipeline/*`, `src/app/api/*`, `src/middleware.ts` | Auth, orchestration with time budget, collection, normalization, dedupe, Gemini calls, validation, deterministic metrics, report storage, notifications | Cron/manual triggers, config, API responses, model JSON | Rows in Neon, JSON run summaries | All other components |
+| **Database** | Neon Postgres, `db/migrations/*.sql` applied by `npm run db:migrate` | Source of truth for config, discussions, mentions, analyses, pain-point catalog, immutable report snapshots, run logs; single server-side role; no public API | SQL from backend (batches wrapped in transactions) | Query results to backend | Backend only (`DATABASE_URL` server-side) |
 | **API** (external) | Hacker News Algolia, Stack Exchange v2.3, GitHub search (optional), Gemini Flash `generateContent`, Slack webhook (optional) | Supply live discussions; structured extraction and synthesis; notification | HTTP requests with keys from env | JSON | Backend |
 | **Version control** | GitHub repository | History, review, deploy trigger | Commits | Vercel deployments | Vercel |
 | Hosting/Scheduler | Vercel + `vercel.json` crons | Run serverless functions; fire scheduled GETs with `Authorization: Bearer $CRON_SECRET` | Git pushes, schedule | HTTPS calls to cron routes; public URL | GitHub, Backend |
 
 ## End-to-end flow
 
-1. **Daily 06:30 IST** Vercel Cron calls `/api/cron/daily`. The backend checks the secret, refuses to start if another run is active, reads active topics/keywords from Supabase, and queries each enabled source per keyword (3-day overlap; 15-day backfill for new keywords). Results are phrase-checked, deduplicated and upserted.
+1. **Daily 06:30 IST** Vercel Cron calls `/api/cron/daily`. The backend checks the secret, refuses to start if another run is active, reads active topics/keywords from Neon, and queries each enabled source per keyword (3-day overlap; 15-day backfill for new keywords). Results are phrase-checked, deduplicated and upserted.
 2. Pending discussions go to **Gemini Flash** in batches of 10 with untrusted text fenced. Output is schema-validated; quotes not found verbatim in the source are discarded and confidence capped. Unfinished work stays queued for the next run.
 3. **Friday 08:00 IST** `/api/cron/weekly` does a final collection/analysis pass, then deterministic code computes unique-discussion counts for this week vs. last week, Δ, %Δ (or "New"), trend, distinct sources, unresolved share and sufficiency.
 4. Gemini receives the computed metrics plus evidence IDs and writes findings; any claim without a supplied evidence ID is removed. The report and per-pain-point metrics are stored as a versioned snapshot (idempotent: one scheduled report per week).

@@ -1,4 +1,4 @@
--- Developer Community Pulse — core schema
+-- Developer Community Pulse — core schema (Neon Postgres)
 create extension if not exists pgcrypto;
 
 -- Monitored configuration ----------------------------------------------------
@@ -166,16 +166,5 @@ create table if not exists public.topic_metrics (
 );
 create index if not exists topic_metrics_key_idx on public.topic_metrics (pain_point_key);
 
--- Lock everything down: the browser never talks to Supabase directly.
--- All access goes through server code using the service role key, which bypasses RLS.
-alter table public.topics enable row level security;
-alter table public.keywords enable row level security;
-alter table public.sources enable row level security;
-alter table public.collection_runs enable row level security;
-alter table public.discussions enable row level security;
-alter table public.discussion_matches enable row level security;
-alter table public.pain_points enable row level security;
-alter table public.discussion_analyses enable row level security;
-alter table public.reports enable row level security;
-alter table public.topic_metrics enable row level security;
--- (No policies for anon/authenticated => no access with the public anon key.)
+-- Access model: the app connects with one server-side role via DATABASE_URL.
+-- The browser never connects to the database; there is no public API to protect with RLS.

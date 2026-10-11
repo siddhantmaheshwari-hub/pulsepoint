@@ -36,7 +36,7 @@ No kill switch fails. Check 4 is only partially proven, so v1 is deliberately sm
 - **Verdict:** **YES.**
 - **Reasoning:** A fixed cadence with a fixed deliverable is the ideal shape for a scheduled pipeline.
 - **Risks:** The monitored vocabulary drifts as the product evolves.
-- **Safeguards:** Topics/keywords live in Supabase and are editable from the UI; new keywords are backfilled 15 days so comparisons stay fair; keyword changes are flagged in the brief.
+- **Safeguards:** Topics/keywords live in the Neon database and are editable from the UI; new keywords are backfilled 15 days so comparisons stay fair; keyword changes are flagged in the brief.
 - **Evidence still required:** None blocking.
 
 ### 3. Input available? — Kill switch
@@ -81,7 +81,7 @@ No kill switch fails. Check 4 is only partially proven, so v1 is deliberately sm
 
 ### 8. ROI worth it? — Boundary
 - **Purpose:** Does value exceed build + run cost?
-- **Evidence:** Run cost: Gemini Flash on a few hundred discussions/week (≈30–60 calls) is small; Supabase free tier is sufficient. Saves ~78 hours/year of PM time plus better-quality signal. Build: days, not weeks.
+- **Evidence:** Run cost: Gemini Flash on a few hundred discussions/week (≈30–60 calls) is small; Neon free tier is sufficient. Saves ~78 hours/year of PM time plus better-quality signal. Build: days, not weeks.
 - **Verdict:** **YES.**
 - **Risks:** Vercel's Hobby plan is for non-commercial use — a startup's internal tool should run on Pro (~$20/month). API changes require maintenance.
 - **Evidence still required:** Actual Gemini usage after 4 weeks (visible in Google AI Studio).

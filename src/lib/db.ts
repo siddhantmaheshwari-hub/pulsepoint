@@ -1,28 +1,39 @@
 import 'server-only';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import postgres from 'postgres';
 import { env } from './env';
 
-let client: SupabaseClient | null = null;
+export type Sql = postgres.Sql;
+let client: Sql | null = null;
 
-/** Service-role client. Server-only: this module can never be bundled for the browser. */
-export function db(): SupabaseClient {
-  if (!client) client = createClient(env.supabaseUrl, env.supabaseServiceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+/**
+ * Neon Postgres over TCP (postgres.js). Use the *pooled* Neon connection string in production.
+ * Server-only: this module can never be bundled for the browser.
+ * Timestamps come back as ISO strings and numerics as numbers, so rows serialize cleanly to React.
+ */
+export function db(): Sql {
+  if (client) return client;
+  const url = env.databaseUrl;
+  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+  client = postgres(url, {
+    ssl: local ? false : 'require',
+    max: 5,
+    idle_timeout: 20,
+    connect_timeout: 15,
+    prepare: false, // compatible with Neon's PgBouncer pooler
+    onnotice: () => {},
+    types: {
+      isoTimestamp: { to: 1184, from: [1114, 1184], serialize: (x: Date | string) => (x instanceof Date ? x.toISOString() : x), parse: (x: string) => new Date(x).toISOString() },
+      numericAsNumber: { to: 1700, from: [1700], serialize: (x: number) => String(x), parse: (x: string) => Number(x) },
+    },
+  });
   return client;
 }
 
-/** Throw on Supabase errors so failures are never silently treated as empty data. */
-export function must<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
-  if (res.error) throw new Error(`${what}: ${res.error.message}`);
-  return res.data as T;
+/** For tests: close the pool so the process can exit. */
+export async function closeDb() {
+  if (client) { await client.end({ timeout: 5 }); client = null; }
 }
 
-/** Page through a query 1000 rows at a time (PostgREST caps responses). */
-export async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, what: string): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += 1000) {
-    const page = must(await build(from, from + 999), what);
-    out.push(...page);
-    if (page.length < 1000) break;
-  }
-  return out;
+export function isUniqueViolation(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { code?: string }).code === '23505';
 }

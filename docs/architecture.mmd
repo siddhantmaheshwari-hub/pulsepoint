@@ -34,7 +34,7 @@ flowchart LR
     G1["Structured extraction JSON"]
     G2["Evidence-cited synthesis JSON"]
   end
-  subgraph SB["Supabase Postgres (RLS on, service role server-only)"]
+  subgraph SB["Neon Postgres (server-only connection via DATABASE_URL)"]
     S1[("topics, keywords, sources")]
     S2[("discussions, discussion_matches")]
     S3[("pain_points, discussion_analyses")]

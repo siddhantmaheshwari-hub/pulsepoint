@@ -13,7 +13,7 @@ export default async function TopicsPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">Topics & keywords</h1>
-      <p className="mt-1 text-sm text-muted">Stored in Supabase and read at the start of every run — changes apply to the next collection without a redeploy. Pausing keeps history; the brief flags keyword changes so trends are not misread.</p>
+      <p className="mt-1 text-sm text-muted">Stored in the Neon database and read at the start of every run — changes apply to the next collection without a redeploy. Pausing keeps history; the brief flags keyword changes so trends are not misread.</p>
 
       <section className="mt-6" aria-labelledby="src-h">
         <h2 id="src-h" className="h-section">Sources</h2>

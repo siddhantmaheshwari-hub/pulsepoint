@@ -1,20 +1,19 @@
 import 'server-only';
-import { db, must } from '../db';
+import { db } from '../db';
 import type { SourceId } from '../types';
 
 export interface ActiveKeyword { id: string; term: string; topic_id: string; topic_slug: string; backfilled_at: string | null }
 export interface SourceRow { id: SourceId; name: string; is_enabled: boolean; config: { maxItemsPerKeyword?: number } }
 
 export async function loadConfig() {
-  const topics = must(await db().from('topics').select('id, slug, name, is_active'), 'load topics') as { id: string; slug: string; name: string; is_active: boolean }[];
-  const keywords = must(await db().from('keywords').select('id, term, topic_id, is_active, backfilled_at'), 'load keywords') as { id: string; term: string; topic_id: string; is_active: boolean; backfilled_at: string | null }[];
-  const sources = must(await db().from('sources').select('id, name, is_enabled, config'), 'load sources') as SourceRow[];
-  const activeTopics = topics.filter((t) => t.is_active);
-  const slugById = new Map(activeTopics.map((t) => [t.id, t.slug]));
-  const active: ActiveKeyword[] = keywords
-    .filter((k) => k.is_active && slugById.has(k.topic_id))
-    .map((k) => ({ id: k.id, term: k.term, topic_id: k.topic_id, topic_slug: slugById.get(k.topic_id)!, backfilled_at: k.backfilled_at }));
-  return { topics: activeTopics, keywords: active, sources };
+  const sql = db();
+  const topics = await sql<{ id: string; slug: string; name: string }[]>`select id, slug, name from topics where is_active order by created_at`;
+  const keywords = await sql<ActiveKeyword[]>`
+    select k.id, k.term, k.topic_id, t.slug as topic_slug, k.backfilled_at
+    from keywords k join topics t on t.id = k.topic_id
+    where k.is_active and t.is_active order by k.created_at`;
+  const sources = await sql<SourceRow[]>`select id, name, is_enabled, config from sources order by id`;
+  return { topics: [...topics], keywords: [...keywords], sources: [...sources] };
 }
 
 /** Stable description of what was monitored, stored with every run and report. */
