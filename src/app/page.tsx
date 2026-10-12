@@ -7,6 +7,7 @@ import { GenerateButton } from '@/components/shell/GenerateButton';
 import { AiMark, Empty, Metric, SourceChip } from '@/components/ui/bits';
 import { FeedbackButtons } from '@/components/ui/FeedbackButtons';
 import { TrendTag } from '@/components/ui/Trend';
+import { PeriodView } from '@/components/PeriodView';
 import { SetupNotice } from '@/components/SetupNotice';
 import { SegmentBar } from '@/components/viz/SegmentBar';
 import { VolumeChart } from '@/components/viz/VolumeChart';
@@ -15,6 +16,7 @@ import { env, missingEnv } from '@/lib/env';
 import { briefMarkdown } from '@/lib/export';
 import { fmtDateTime, fmtPeriod, plural } from '@/lib/format';
 import { compareOn, type SP } from '@/lib/params';
+import { parsePeriod } from '@/lib/periods';
 import { getFeedback, getSourceBreakdown, getWeeklyVolume, type DataQuality } from '@/lib/queries';
 import { computeTrend } from '@/lib/trends';
 import { SOURCE_LABEL, type EvidenceItem, type SourceId, type TopicMetricRow } from '@/lib/types';
@@ -24,6 +26,14 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
   if (missing.length) return <SetupNotice missing={missing} />;
   const sp = await searchParams;
   const compare = compareOn(sp);
+
+  // Month / Range: numbers computed from stored data, no AI (the AI brief is weekly).
+  const period = parsePeriod(sp, new Date(), env.tzOffsetMinutes);
+  if (period.view !== 'week') {
+    if ('error' in period) return <Empty title="That period can’t be shown" action={<Link href="/" className="pill">Back to this week</Link>}>{period.error}</Empty>;
+    return <PeriodView period={period} compare={compare} />;
+  }
+
   const { report, metrics, sparks, sparkLabels, topicNames, sources } = await loadBrief(sp);
 
   if (!report) {

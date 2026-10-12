@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { SetupNotice } from '@/components/SetupNotice';
 import { AiMark, Empty, PageHeader, SourceChip } from '@/components/ui/bits';
-import { missingEnv } from '@/lib/env';
+import { env, missingEnv } from '@/lib/env';
 import { fmtDate, fmtPeriod } from '@/lib/format';
 import { one, type SP } from '@/lib/params';
+import { parsePeriod, periodParams } from '@/lib/periods';
 import { getMetrics, getReport, listDiscussions, listTopics, windowFor, type DiscussionRow } from '@/lib/queries';
 import { SOURCE_LABEL, type SourceId } from '@/lib/types';
 
@@ -16,7 +17,12 @@ export default async function DiscussionsPage({ searchParams }: { searchParams: 
   if (missing.length) return <SetupNotice missing={missing} />;
   const sp = await searchParams;
   const report = await getReport(one(sp.report));
-  const w = windowFor(report);
+  // Month / Range from the top bar override the weekly window (same dates as the period view's counts).
+  const period = parsePeriod(sp, new Date(), env.tzOffsetMinutes);
+  const pw = 'w' in period ? period.w : null;
+  const keepPeriod = periodParams(period);
+  const unit = pw ? 'period' : 'week';
+  const w = pw ? { start: pw.currentStart.toISOString(), end: pw.currentEnd.toISOString(), prevStart: pw.previousStart.toISOString() } : windowFor(report);
   const scope = one(sp.scope) === 'previous' ? 'previous' : one(sp.scope) === 'both' ? 'both' : 'current';
   const start = scope === 'current' ? w.start : w.prevStart, end = scope === 'previous' ? w.start : w.end;
   const q = (one(sp.q) ?? '').slice(0, 100), source = one(sp.source) ?? 'all', topic = one(sp.topic) ?? 'all', kind = one(sp.kind) ?? 'all', key = one(sp.key) ?? '';
@@ -32,21 +38,22 @@ export default async function DiscussionsPage({ searchParams }: { searchParams: 
   const keyLabel = safeKey ? metrics.find((m) => m.pain_point_key === safeKey)?.label ?? safeKey : null;
   const href = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ report: one(sp.report) ?? null, compare: one(sp.compare) ?? null, q: q || null, source: source === 'all' ? null : source, topic: topic === 'all' ? null : topic, kind: kind === 'all' ? null : kind, key: safeKey || null, scope: scope === 'current' ? null : scope, ...patch })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ ...keepPeriod, report: one(sp.report) ?? null, compare: one(sp.compare) ?? null, q: q || null, source: source === 'all' ? null : source, topic: topic === 'all' ? null : topic, kind: kind === 'all' ? null : kind, key: safeKey || null, scope: scope === 'current' ? null : scope, ...patch })) if (v) p.set(k, v);
     return `/discussions${p.toString() ? `?${p}` : ''}`;
   };
 
   return (
     <div>
-      <PageHeader title="Discussions" lead={<>The original developer conversations behind every number, {scope === 'both' ? 'across both weeks' : scope === 'previous' ? 'from the previous week' : `for ${fmtPeriod(start, end)}`}. Source text is shown as written; the AI reading sits beside it.</>} />
+      <PageHeader title="Discussions" lead={<>The original developer conversations behind every number, {scope === 'both' ? `across both ${unit}s` : scope === 'previous' ? `from the previous ${unit} (${fmtPeriod(start, end)})` : `for ${fmtPeriod(start, end)}`}. Source text is shown as written; the AI reading sits beside it.</>} />
 
       <div className="grid gap-8 lg:grid-cols-[230px_minmax(0,1fr)]">
         <form method="get" action="/discussions" className="space-y-5 lg:sticky lg:top-6 lg:self-start" aria-label="Filter discussions">
           {one(sp.report) && <input type="hidden" name="report" value={one(sp.report)} />}
           {one(sp.compare) && <input type="hidden" name="compare" value={one(sp.compare)} />}
           {safeKey && <input type="hidden" name="key" value={safeKey} />}
+          {Object.entries(keepPeriod).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
           <Field label="Search"><input name="q" defaultValue={q} className="field w-full" placeholder="Words in title or text" /></Field>
-          <Field label="Week"><select name="scope" defaultValue={scope} className="field w-full"><option value="current">Selected week</option><option value="previous">Previous week</option><option value="both">Both weeks</option></select></Field>
+          <Field label={unit === 'week' ? 'Week' : 'Period'}><select name="scope" defaultValue={scope} className="field w-full"><option value="current">Selected {unit}</option><option value="previous">Previous {unit}</option><option value="both">Both {unit}s</option></select></Field>
           <Field label="Source"><select name="source" defaultValue={source} className="field w-full"><option value="all">All sources</option>{(Object.keys(SOURCE_LABEL) as SourceId[]).map((s) => <option key={s} value={s}>{SOURCE_LABEL[s]}</option>)}</select></Field>
           <Field label="Topic"><select name="topic" defaultValue={topic} className="field w-full"><option value="all">All topics</option>{topics.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}</select></Field>
           <Field label="AI classification"><select name="kind" defaultValue={kind} className="field w-full"><option value="all">Everything</option><option value="pain">Pain points only</option>{Object.entries(KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}<option value="pending">Not analysed yet</option></select></Field>

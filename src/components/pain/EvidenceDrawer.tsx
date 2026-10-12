@@ -9,8 +9,8 @@ import { TrendTag } from '../ui/Trend';
 
 const RES: Record<string, string> = { unresolved: 'Unresolved', partially_resolved: 'Partly resolved', resolved: 'Resolved', unknown: 'Status unclear' };
 
-export function EvidenceDrawer({ m, history, labels, topicName, periodStart, compare, onClose }: {
-  m: TopicMetricRow; history: (number | null)[]; labels: string[]; topicName: string | null; periodStart: string; compare: boolean; onClose: () => void;
+export function EvidenceDrawer({ m, history, labels, topicName, periodStart, compare, unit = 'week', onClose }: {
+  m: TopicMetricRow; history: (number | null)[]; labels: string[]; topicName: string | null; periodStart: string; compare: boolean; unit?: 'week' | 'period'; onClose: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -32,7 +32,7 @@ export function EvidenceDrawer({ m, history, labels, topicName, periodStart, com
         <div className="sticky top-0 z-10 border-b border-line bg-paper/95 px-6 py-5 backdrop-blur">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="eyebrow">{topicName ?? 'Uncategorised'} · {recurring ? `recurring since ${fmtDate(m.first_observed)}` : 'first seen this week'}</p>
+              <p className="eyebrow">{topicName ?? 'Uncategorised'} · {recurring ? `recurring since ${fmtDate(m.first_observed)}` : `first seen this ${unit}`}</p>
               <h2 id="ev-title" className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.02em]">{m.label}</h2>
             </div>
             <button ref={closeRef} type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line bg-panel hover:border-line-strong" aria-label="Close evidence"><X size={16} /></button>
@@ -41,8 +41,8 @@ export function EvidenceDrawer({ m, history, labels, topicName, periodStart, com
 
         <div className="space-y-8 px-6 py-6">
           <dl className="grid grid-cols-3 gap-4">
-            <div><dt className="meta">This week</dt><dd className="mt-1 text-[32px] font-light leading-none">{m.current_count}</dd></div>
-            {compare && <div><dt className="meta">Previous week</dt><dd className="mt-1 text-[32px] font-light leading-none text-ink-muted">{m.previous_count}</dd></div>}
+            <div><dt className="meta">This {unit}</dt><dd className="mt-1 text-[32px] font-light leading-none">{m.current_count}</dd></div>
+            {compare && <div><dt className="meta">Previous {unit}</dt><dd className="mt-1 text-[32px] font-light leading-none text-ink-muted">{m.previous_count}</dd></div>}
             <div><dt className="meta">Change</dt><dd className="mt-2"><TrendTag trend={m.trend} pct={m.pct_change} /></dd></div>
             <div><dt className="meta">Unresolved</dt><dd className="mt-1 text-[15px] font-medium">{m.unresolved_count} of {m.current_count}</dd></div>
             <div><dt className="meta">Sources</dt><dd className="mt-1 text-[15px] font-medium">{m.distinct_sources}</dd></div>
@@ -87,7 +87,7 @@ export function EvidenceDrawer({ m, history, labels, topicName, periodStart, com
                   {e.quote && <blockquote className="mt-2.5 border-l-2 border-line-strong pl-3 text-[14px] leading-relaxed text-ink-2">“{e.quote}”</blockquote>}
                 </li>
               ))}
-              {!m.evidence.length && <li className="text-sm text-ink-muted">No discussions this week — this pain point appeared only in the previous week.</li>}
+              {!m.evidence.length && <li className="text-sm text-ink-muted">No discussions this {unit} — this pain point appeared only in the previous {unit}.</li>}
             </ul>
           </section>
         </div>

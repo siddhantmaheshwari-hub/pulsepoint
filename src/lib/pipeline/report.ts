@@ -3,7 +3,7 @@ import type postgres from 'postgres';
 import { db } from '../db';
 import { env } from '../env';
 import { geminiJson } from '../gemini';
-import { buildMetrics, type AnalyzedRow, type PainPointInfo } from '../metrics';
+import { loadWindowMetrics } from '../period-data';
 import { validateSynthesis } from '../schemas';
 import { truncate } from '../text';
 import type { Synthesis, TopicMetricRow } from '../types';
@@ -20,21 +20,7 @@ export async function generateReport(runId: string, trigger: 'cron_weekly' | 'ma
   const w = reportWindows(now, env.tzOffsetMinutes);
   const ps = w.previousStart.toISOString(), cs = w.currentStart.toISOString(), ce = w.currentEnd.toISOString();
 
-  const rows = await sql<AnalyzedRow[]>`
-    select a.discussion_id, a.is_relevant, a.kind, a.pain_point_key, a.topic_slug, a.resolution_status,
-           a.evidence_quote, a.evidence_verified, a.confidence, a.existing_workaround,
-           d.source_id, d.title, d.url, d.created_at_source, d.score
-    from discussion_analyses a join discussions d on d.id = a.discussion_id
-    where a.analysis_version = ${ANALYSIS_VERSION} and d.duplicate_of is null
-      and d.created_at_source >= ${ps} and d.created_at_source < ${ce}`;
-
-  const keys = [...new Set(rows.map((r) => r.pain_point_key).filter(Boolean))] as string[];
-  const info = new Map<string, PainPointInfo>();
-  if (keys.length) {
-    const pp = await sql<({ key: string } & PainPointInfo)[]>`select key, label, first_seen_at, last_seen_at from pain_points where key = any(${sql.array(keys)}::text[])`;
-    for (const p of pp) info.set(p.key, p);
-  }
-  const metrics = buildMetrics([...rows], w, info);
+  const { rows, metrics } = await loadWindowMetrics(w);
 
   // Deterministic totals
   const [c] = await sql<{ collected: number; pending: number; dupes: number; mentions: number }[]>`

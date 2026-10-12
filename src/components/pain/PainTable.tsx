@@ -11,10 +11,12 @@ import { EvidenceDrawer } from './EvidenceDrawer';
 export interface PainTableProps {
   metrics: TopicMetricRow[]; sparks: Record<string, (number | null)[]>; sparkLabels: string[];
   topics: Record<string, string>; periodStart: string; compare: boolean; variant?: 'full' | 'compact'; limit?: number;
+  /** 'period' for the Month / Range views; wording only. */
+  unit?: 'week' | 'period';
 }
 type SortKey = 'current' | 'change' | 'label' | 'unresolved';
 
-export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, compare, variant = 'full', limit }: PainTableProps) {
+export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, compare, variant = 'full', limit, unit = 'week' }: PainTableProps) {
   const [source, setSource] = useState<'all' | SourceId>('all');
   const [topic, setTopic] = useState('all');
   const [trend, setTrend] = useState<'all' | Trend>('all');
@@ -85,7 +87,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
             <thead className="border-b border-line text-left text-[12px] text-ink-muted">
               <tr>
                 {sortBtn('label', 'Pain point', 'text-left pl-5')}
-                {sortBtn('current', 'This week')}
+                {sortBtn('current', unit === 'week' ? 'This week' : 'This period')}
                 {compare && variant === 'full' && <th scope="col" className="px-3 py-3 text-right font-medium">Previous</th>}
                 {compare && sortBtn('change', 'Change')}
                 <th scope="col" className={`px-3 py-3 pr-5 font-medium ${variant === 'compact' ? 'hidden sm:table-cell' : ''}`}>8 weeks</th>
@@ -103,7 +105,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
                         <span className="block truncate font-medium text-ink group-hover:text-violet-ink">{m.label}</span>
                         <span className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-ink-muted">
                           <span>{(m.topic_slug && topics[m.topic_slug]) ?? 'Uncategorised'}</span>
-                          <span>{recurring ? 'Recurring' : 'First seen this week'}</span>
+                          <span>{recurring ? 'Recurring' : `First seen this ${unit}`}</span>
                           {m.underserved && <span className="font-medium text-rise">Underserved</span>}
                           {m.bug_reports > 0 && <span>{m.bug_reports} isolated bug{m.bug_reports === 1 ? '' : 's'}</span>}
                         </span>
@@ -130,7 +132,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
           </table>
         </div>
       )}
-      {open && <EvidenceDrawer m={open} history={sparks[open.pain_point_key] ?? []} labels={sparkLabels} topicName={open.topic_slug ? topics[open.topic_slug] ?? null : null} periodStart={periodStart} compare={compare} onClose={close} />}
+      {open && <EvidenceDrawer m={open} history={sparks[open.pain_point_key] ?? []} labels={sparkLabels} topicName={open.topic_slug ? topics[open.topic_slug] ?? null : null} periodStart={periodStart} compare={compare} unit={unit} onClose={close} />}
     </div>
   );
 }
