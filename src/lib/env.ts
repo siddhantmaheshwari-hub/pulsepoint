@@ -15,7 +15,7 @@ function req(name: string): string {
 export const env = {
   get databaseUrl() { return req('DATABASE_URL'); },
   get geminiKey() { return req('GEMINI_API_KEY'); },
-  get geminiModel() { return process.env.GEMINI_MODEL || 'gemini-2.5-flash'; },
+  get geminiModel() { return process.env.GEMINI_MODEL || 'gemini-3.8-flash'; },
   get geminiMinIntervalMs() { return Number(process.env.GEMINI_MIN_INTERVAL_MS ?? 4000); },
   get cronSecret() { return process.env.CRON_SECRET ?? ''; },
   get stackExchangeKey() { return process.env.STACKEXCHANGE_KEY || null; },

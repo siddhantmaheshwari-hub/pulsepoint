@@ -20,6 +20,8 @@ export function db(): Sql {
     max: 5,
     idle_timeout: 20,
     connect_timeout: 15,
+    keep_alive: 30, // seconds; detect connections the Neon pooler dropped (seen live: CONNECTION_CLOSED, ECONNRESET)
+    max_lifetime: 300, // recycle connections well before the pooler retires them
     prepare: false, // compatible with Neon's PgBouncer pooler
     onnotice: () => {},
     types: {

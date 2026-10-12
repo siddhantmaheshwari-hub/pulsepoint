@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { LeadSignal } from '@/components/pain/LeadSignal';
 import { PainTable } from '@/components/pain/PainTable';
+import { ExportButtons } from '@/components/shell/ExportButtons';
 import { GenerateButton } from '@/components/shell/GenerateButton';
 import { AiMark, Empty, Metric, SourceChip } from '@/components/ui/bits';
 import { TrendTag } from '@/components/ui/Trend';
@@ -9,7 +10,8 @@ import { SetupNotice } from '@/components/SetupNotice';
 import { SegmentBar } from '@/components/viz/SegmentBar';
 import { VolumeChart } from '@/components/viz/VolumeChart';
 import { loadBrief } from '@/lib/brief';
-import { missingEnv } from '@/lib/env';
+import { env, missingEnv } from '@/lib/env';
+import { briefMarkdown } from '@/lib/export';
 import { fmtDateTime, fmtPeriod, plural } from '@/lib/format';
 import { compareOn, type SP } from '@/lib/params';
 import { getSourceBreakdown, getWeeklyVolume, type DataQuality } from '@/lib/queries';
@@ -35,16 +37,19 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  const [volume, bySource] = await Promise.all([getWeeklyVolume(report.period_end), getSourceBreakdown(report)]);
+  const [volume, bySource] = await Promise.all([getWeeklyVolume(report.period_end, report.analysis_version), getSourceBreakdown(report)]);
   const t = report.totals, s = report.synthesis, dq = report.data_quality;
   const active = metrics.filter((m) => m.current_count > 0);
   const recurring = active.filter((m) => m.first_observed && Date.parse(m.first_observed) < Date.parse(report.period_start));
-  const lead = [...metrics].filter((m) => m.trend === 'rising' || m.trend === 'new').sort((a, b) => b.abs_change - a.abs_change || b.current_count - a.current_count)[0] ?? active[0];
+  // The focal panel needs enough data to deserve it: a lone new anecdote never outranks the most-discussed problem.
+  const lead = metrics.filter((m) => (m.trend === 'rising' || m.trend === 'new') && m.sufficiency !== 'insufficient').sort((a, b) => b.abs_change - a.abs_change || b.current_count - a.current_count)[0]
+    ?? [...active].sort((a, b) => b.current_count - a.current_count)[0];
   const evidence = new Map<string, EvidenceItem>(metrics.flatMap((m) => m.evidence.map((e) => [e.discussion_id, e] as const)));
   const label = new Map(metrics.map((m) => [m.pain_point_key, m.label]));
   const underserved = metrics.filter((m) => m.underserved).slice(0, 3);
   const topicMoves = topicMovement(metrics, topicNames);
   const sourcesEnabled = sources.filter((x) => x.is_enabled).length;
+  const markdown = briefMarkdown({ periodLabel: fmtPeriod(report.period_start, report.period_end), url: env.appUrl ? `${env.appUrl}/?report=${report.id}` : null, totals: t, metrics, synthesis: s });
   const summary = `${plural(t.pain_discussions, 'discussion')} described a workflow pain or unmet need this week, across ${plural(t.pain_points_tracked, 'pain point')}${compare ? ` (${t.pain_discussions_previous} the week before)` : ''}. ${t.rising} rising, ${t.new} newly observed, ${t.declining} easing.`;
 
   return (
@@ -62,6 +67,7 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
             </div>
           )}
           <p className="meta mt-5">Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'a manual run' : 'the Friday schedule'}. Numbers are computed by code; AI text is marked.</p>
+          <div className="mt-4"><ExportButtons markdown={markdown} /></div>
         </div>
         <div className="lg:col-span-5">
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 rounded-panel border border-line bg-panel p-6">

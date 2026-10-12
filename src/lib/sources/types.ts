@@ -18,5 +18,6 @@ export interface RawDiscussion {
 export interface SourceAdapter {
   id: SourceId;
   isAvailable(): boolean;
-  search(term: string, since: Date, maxItems: number): Promise<RawDiscussion[]>;
+  /** `deadline` (epoch ms) caps request timeouts and retries; see fetchJson. */
+  search(term: string, since: Date, maxItems: number, deadline?: number): Promise<RawDiscussion[]>;
 }

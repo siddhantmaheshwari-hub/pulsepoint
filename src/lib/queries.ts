@@ -1,5 +1,6 @@
 import 'server-only';
 import { db } from './db';
+import { BACKFILL_DAYS } from './pipeline/config';
 import { ANALYSIS_VERSION } from './pipeline/prompts';
 import type { SourceId, Synthesis, TopicMetricRow } from './types';
 
@@ -58,22 +59,26 @@ export async function getFreshness(): Promise<Freshness> {
   return f;
 }
 
-export interface WeekVolume { week_end: string; collected: number; pain: number }
-/** Unique (non-duplicate) discussions per 7-day bucket ending at periodEnd, oldest first. */
-export async function getWeeklyVolume(periodEnd: string, weeks = 8): Promise<WeekVolume[]> {
+export interface WeekVolume { week_end: string; collected: number; pain: number; monitored: boolean }
+/** Unique (non-duplicate) discussions per 7-day bucket ending at periodEnd, oldest first. `version` = the report's analysis_version, so charts match the snapshot. */
+export async function getWeeklyVolume(periodEnd: string, version: string = ANALYSIS_VERSION, weeks = 8): Promise<WeekVolume[]> {
   const rows = await db()<{ wk: number; collected: number; pain: number }[]>`
     with d as (
       select floor(extract(epoch from (${periodEnd}::timestamptz - d.created_at_source)) / 604800)::int as wk, a.kind, a.is_relevant
       from discussions d
-      left join discussion_analyses a on a.discussion_id = d.id and a.analysis_version = ${ANALYSIS_VERSION}
+      left join discussion_analyses a on a.discussion_id = d.id and a.analysis_version = ${version}
       where d.duplicate_of is null and d.created_at_source < ${periodEnd}::timestamptz
         and d.created_at_source >= ${periodEnd}::timestamptz - (${weeks} * interval '7 days'))
     select wk, count(*)::int as collected, count(*) filter (where is_relevant and kind in ('workflow_pain','unmet_need'))::int as pain
     from d group by wk`;
+  // Monitoring reaches back BACKFILL_DAYS before the first run; earlier weeks were never collected (a gap, not a zero).
+  const [{ first }] = await db()<{ first: string | null }[]>`select min(started_at) as first from collection_runs`;
+  const since = first ? Date.parse(first) - BACKFILL_DAYS * 86_400_000 : Infinity;
   const by = new Map(rows.map((r) => [r.wk, r]));
   const end = Date.parse(periodEnd);
   return Array.from({ length: weeks }, (_, i) => weeks - 1 - i).map((wk) => ({
     week_end: new Date(end - wk * WEEK).toISOString(), collected: by.get(wk)?.collected ?? 0, pain: by.get(wk)?.pain ?? 0,
+    monitored: end - wk * WEEK > since,
   }));
 }
 
@@ -96,7 +101,7 @@ export async function getSparklines(keys: string[], periodEnd: string, weeks = 8
 }
 
 export interface SourceBreakdown { id: SourceId; name: string; is_enabled: boolean; max_items: number; cur_collected: number; prev_collected: number; cur_pain: number; prev_pain: number }
-export async function getSourceBreakdown(r: Pick<ReportRow, 'period_start' | 'period_end' | 'prev_period_start'>): Promise<SourceBreakdown[]> {
+export async function getSourceBreakdown(r: Pick<ReportRow, 'period_start' | 'period_end' | 'prev_period_start'> & { analysis_version?: string }): Promise<SourceBreakdown[]> {
   return [...await db()<SourceBreakdown[]>`
     select s.id, s.name, s.is_enabled, coalesce((s.config->>'maxItemsPerKeyword')::int, 25) as max_items,
       count(d.id) filter (where d.created_at_source >= ${r.period_start} and d.created_at_source < ${r.period_end})::int as cur_collected,
@@ -105,7 +110,7 @@ export async function getSourceBreakdown(r: Pick<ReportRow, 'period_start' | 'pe
       count(d.id) filter (where d.created_at_source >= ${r.prev_period_start} and d.created_at_source < ${r.period_start} and a.is_relevant and a.kind in ('workflow_pain','unmet_need'))::int as prev_pain
     from sources s
     left join discussions d on d.source_id = s.id and d.duplicate_of is null
-    left join discussion_analyses a on a.discussion_id = d.id and a.analysis_version = ${ANALYSIS_VERSION}
+    left join discussion_analyses a on a.discussion_id = d.id and a.analysis_version = ${r.analysis_version ?? ANALYSIS_VERSION}
     group by s.id order by s.id`];
 }
 

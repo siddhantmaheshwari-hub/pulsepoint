@@ -16,6 +16,12 @@ export async function runPipeline(trigger: Trigger, mode: Mode) {
   const started = Date.now();
   const deadline = started + env.budgetMs;
 
+  // A run older than the stale window cannot still be alive (the function limit is 300 s), so it crashed or was
+  // killed before recording a result. Close it honestly instead of leaving it "running" in System health forever.
+  await sql`update collection_runs set status = 'failed', finished_at = now(),
+    errors = errors || ${sql.json([{ stage: 'pipeline', message: 'Run did not finish: the server stopped before it could record a result.' }])}
+    where status = 'running' and started_at < now() - interval '6 minutes'`;
+
   // Concurrency guard: one pipeline at a time (a crashed run stops blocking after 6 minutes).
   const [running] = await sql<{ id: string }[]>`select id from collection_runs where status = 'running' and started_at >= now() - interval '6 minutes' limit 1`;
   if (running) return { status: 'skipped' as const, reason: 'Another run is in progress', runId: running.id };
@@ -36,20 +42,40 @@ export async function runPipeline(trigger: Trigger, mode: Mode) {
   let reportId: string | null = null;
   let fatal = false;
 
+  const stageMs: Record<string, number> = {};
+  stats.stage_ms = stageMs;
+  let stage = 'start';
+  const timed = async <T,>(name: string, fn: () => Promise<T>): Promise<T> => {
+    const t = Date.now();
+    stage = name;
+    console.info(`[run ${run.id.slice(0, 8)}] ${name} started`);
+    try { return await fn(); } finally { stageMs[name] = Date.now() - t; console.info(`[run ${run.id.slice(0, 8)}] ${name} finished in ${stageMs[name]} ms`); }
+  };
+  // Watchdog: whatever hangs (a dead socket, a stalled API), the run records an outcome before the 300 s function limit.
+  const hardStop = started + Math.min(env.budgetMs + 40_000, 290_000);
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const overrun = new Promise<never>((_, reject) => {
+    watchdog = setTimeout(() => reject(new Error(`Run stopped by the watchdog: the ${stage} stage was still running at the hard time limit`)), hardStop - Date.now());
+  });
+
   try {
-    if (mode !== 'report') stats.collect = await collect(run.id, deadline - (doReport ? 120_000 : 60_000), errors);
-    stats.analyze = await analyzePending(doReport ? deadline - 45_000 : deadline, errors);
-    if (doReport) {
-      const liveSources = (stats.collect as { sources?: Record<string, { failures: number; requests: number }> } | undefined)?.sources ?? {};
-      const rep = await generateReport(run.id, trigger === 'manual' ? 'manual' : 'cron_weekly', errors, liveSources);
-      reportId = rep.reportId;
-      stats.report = rep;
-    } else if (trigger === 'cron_weekly') {
-      stats.report = { skipped: 'Scheduled report for this week already exists' };
-    }
+    await Promise.race([overrun, (async () => {
+      if (mode !== 'report') stats.collect = await timed('collect', () => collect(run.id, deadline - (doReport ? 120_000 : 60_000), errors));
+      stats.analyze = await timed('analyze', () => analyzePending(doReport ? deadline - 45_000 : deadline, errors));
+      if (doReport) {
+        const liveSources = (stats.collect as { sources?: Record<string, { failures: number; requests: number }> } | undefined)?.sources ?? {};
+        const rep = await timed('report', () => generateReport(run.id, trigger === 'manual' ? 'manual' : 'cron_weekly', errors, liveSources, new Date(), deadline));
+        reportId = rep.reportId;
+        stats.report = rep;
+      } else if (trigger === 'cron_weekly') {
+        stats.report = { skipped: 'Scheduled report for this week already exists' };
+      }
+    })()]);
   } catch (e) {
     fatal = true;
     errors.push({ stage: 'pipeline', message: (e as Error).message.slice(0, 500) });
+  } finally {
+    clearTimeout(watchdog);
   }
 
   const remaining = (stats.analyze as { remaining?: number } | undefined)?.remaining ?? 0;

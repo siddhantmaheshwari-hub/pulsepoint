@@ -4,16 +4,16 @@ import { db } from '../db';
 import { ADAPTERS } from '../sources';
 import type { RawDiscussion } from '../sources/types';
 import { countMentions, fingerprint } from '../text';
-import { loadConfig } from './config';
+import { BACKFILL_DAYS, loadConfig } from './config';
 
 const DAY = 86_400_000;
 const DAILY_LOOKBACK_DAYS = 3; // overlap catches late-arriving/edited items and short outages
-const BACKFILL_DAYS = 15; // new keywords get enough history for a week-over-week comparison
+
 const CHUNK = 200;
 const BREAKER_THRESHOLD = 3;
 
 export interface CollectResult {
-  sources: Record<string, { requests: number; failures: number; items: number; skipped?: string }>;
+  sources: Record<string, { requests: number; failures: number; items: number; skipped?: string; capped?: string[] }>;
   newDiscussions: number;
   updatedDiscussions: number;
   duplicatesFlagged: number;
@@ -45,7 +45,8 @@ export async function collect(runId: string, deadline: number, errors: { stage: 
       const since = new Date(now - (kw.backfilled_at ? DAILY_LOOKBACK_DAYS : BACKFILL_DAYS) * DAY);
       stat.requests++;
       try {
-        const items = await adapter.search(kw.term, since, maxItems);
+        const items = await adapter.search(kw.term, since, maxItems, deadline);
+        if (items.length >= maxItems) (stat.capped ??= []).push(kw.term); // more may exist; surfaced in run stats
         for (const d of items) {
           const mentions = countMentions(kw.term, `${d.title}\n${d.body}`);
           if (mentions === 0) { result.droppedNoMatch++; continue; } // search engines are fuzzy; we require the phrase

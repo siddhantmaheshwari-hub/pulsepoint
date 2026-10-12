@@ -28,3 +28,16 @@ a { color: inherit; text-decoration: none; }
 @keyframes slidein { from { transform: translateX(16px); opacity: .6 } to { transform: none; opacity: 1 } }
 /* Grid children may shrink below their content width; wide tables scroll inside their own container */
 @layer base { .grid > * { min-width: 0; } }
+
+/* Print: the brief as a plain document. App chrome and controls hidden; links show their destination. */
+@media print {
+  @page { margin: 14mm; }
+  html, body { background: #fff !important; }
+  [data-print-hide], .print\:hidden, button, form, nav { display: none !important; }
+  .shadow-sheet { box-shadow: none !important; }
+  main { padding: 0 !important; }
+  section, li, .panel { break-inside: avoid; }
+  .bg-coal { background: #fff !important; color: #17191E !important; border: 1px solid #D3CEC2; }
+  .bg-coal * { color: #17191E !important; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 10px; color: #5A5F68; word-break: break-all; }
+}

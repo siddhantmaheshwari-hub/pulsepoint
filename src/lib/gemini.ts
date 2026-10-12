@@ -10,7 +10,7 @@ interface GeminiResponse {
 }
 
 /** Call Gemini Flash with a JSON response schema. Returns parsed JSON (still untrusted — validate with zod). */
-export async function geminiJson(opts: { system: string; user: string; schema: object; temperature?: number }): Promise<unknown> {
+export async function geminiJson(opts: { system: string; user: string; schema: object; temperature?: number; deadline?: number }): Promise<unknown> {
   const wait = lastCall + env.geminiMinIntervalMs - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastCall = Date.now();
@@ -24,8 +24,9 @@ export async function geminiJson(opts: { system: string; user: string; schema: o
       contents: [{ role: 'user', parts: [{ text: opts.user }] }],
       generationConfig: { responseMimeType: 'application/json', responseSchema: opts.schema, temperature: opts.temperature ?? 0.1 },
     }),
-    timeoutMs: 60_000,
+    timeoutMs: 40_000, // healthy calls take 10–15 s; stalled requests (seen live) are cut off and retried
     retries: 3,
+    deadline: opts.deadline,
   });
   if (res.promptFeedback?.blockReason) throw new Error(`Gemini blocked prompt: ${res.promptFeedback.blockReason}`);
   const text = res.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';

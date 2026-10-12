@@ -12,9 +12,17 @@ export function VolumeChart({ data }: { data: WeekVolume[] }) {
   if (!hasData) return <p className="py-10 text-center text-sm text-ink-muted">Volume appears after the first collection.</p>;
   return (
     <figure>
-      <div className="flex h-[168px] items-end gap-2" role="img" aria-label={`Weekly discussions, oldest to newest: ${data.map((d) => `${fmtWeekEnd(d.week_end)} ${d.collected} collected, ${d.pain} pain`).join('; ')}`}>
+      <div className="flex h-[168px] items-end gap-2" role="img" aria-label={`Weekly discussions, oldest to newest: ${data.map((d) => `${fmtWeekEnd(d.week_end)} ${d.monitored ? `${d.collected} collected, ${d.pain} pain` : 'not monitored yet'}`).join('; ')}`}>
         {data.map((d, i) => {
           const cur = i === data.length - 1;
+          if (!d.monitored) {
+            // Before collection began: a hatched gap, never a zero.
+            return (
+              <div key={d.week_end} className="flex flex-1 flex-col items-center justify-end" title={`Week ending ${fmtWeekEnd(d.week_end)}: not monitored yet`}>
+                <div className="hatch w-2.5 rounded-full border border-dashed border-line-strong" style={{ height: 28 }} />
+              </div>
+            );
+          }
           const h = Math.max(6, (d.collected / max) * H), ph = d.collected ? (d.pain / d.collected) * h : 0;
           return (
             <div key={d.week_end} className="group relative flex flex-1 flex-col items-center justify-end" title={`Week ending ${fmtWeekEnd(d.week_end)}: ${d.collected} discussions, ${d.pain} describing pain`}>
@@ -30,6 +38,7 @@ export function VolumeChart({ data }: { data: WeekVolume[] }) {
       <figcaption className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-teal" aria-hidden="true" />Unique discussions collected</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-coal" aria-hidden="true" />Describing a pain point</span>
+        {data.some((d) => !d.monitored) && <span className="inline-flex items-center gap-1.5"><span className="hatch h-2.5 w-2.5 rounded-full border border-dashed border-line-strong" aria-hidden="true" />Not monitored yet</span>}
       </figcaption>
     </figure>
   );

@@ -40,7 +40,7 @@ The top bar's week selector and "vs previous week" switch are stored in the URL 
    The runner records applied files in `schema_migrations`, so running it again is safe. (Alternatively paste `db/migrations/0001_schema.sql` then `0002_seed.sql` into Neon's SQL Editor.)
 
 ### 2. Gemini
-Create an API key at Google AI Studio. Default model: `gemini-2.5-flash` (override with `GEMINI_MODEL` if a newer Flash model is available to your key).
+Create an API key at Google AI Studio. Default model: `gemini-3.8-flash` (`gemini-2.5-flash` is no longer available to new keys; override with `GEMINI_MODEL`).
 
 ### 3. Local run
 ```bash
@@ -55,7 +55,7 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 |---|---|---|
 | `DATABASE_URL` | yes | Neon pooled connection string; server-only |
 | `GEMINI_API_KEY` | yes | |
-| `GEMINI_MODEL` | no | default `gemini-2.5-flash` |
+| `GEMINI_MODEL` | no | default `gemini-3.8-flash` |
 | `GEMINI_MIN_INTERVAL_MS` | no | default 4000 (free-tier friendly) |
 | `CRON_SECRET` | yes | Vercel Cron sends it as a Bearer token automatically |
 | `DASHBOARD_USER` / `DASHBOARD_PASSWORD` | password yes | HTTP Basic auth; mutations are refused until set |

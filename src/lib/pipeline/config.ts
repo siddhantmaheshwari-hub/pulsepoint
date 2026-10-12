@@ -2,6 +2,9 @@ import 'server-only';
 import { db } from '../db';
 import type { SourceId } from '../types';
 
+/** New keywords look back this far so the first report already has a week-over-week comparison. */
+export const BACKFILL_DAYS = 15;
+
 export interface ActiveKeyword { id: string; term: string; topic_id: string; topic_slug: string; backfilled_at: string | null }
 export interface SourceRow { id: SourceId; name: string; is_enabled: boolean; config: { maxItemsPerKeyword?: number } }
 

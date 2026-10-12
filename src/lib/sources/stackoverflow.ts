@@ -1,7 +1,7 @@
 import 'server-only';
 import { env } from '../env';
 import { fetchJson } from '../http';
-import { decodeEntities, stripHtml, truncate } from '../text';
+import { decodeEntities, phraseQuery, stripHtml, truncate } from '../text';
 import type { RawDiscussion, SourceAdapter } from './types';
 
 interface Q {
@@ -15,12 +15,12 @@ interface Resp { items: Q[]; has_more: boolean; backoff?: number; quota_remainin
 export const stackOverflow: SourceAdapter = {
   id: 'stackoverflow',
   isAvailable: () => true,
-  async search(term, since, maxItems) {
+  async search(term, since, maxItems, deadline) {
     const out: RawDiscussion[] = [];
     const key = env.stackExchangeKey ? `&key=${encodeURIComponent(env.stackExchangeKey)}` : '';
     for (let page = 1; page <= 3 && out.length < maxItems; page++) {
-      const url = `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=creation&q=${encodeURIComponent(term)}&fromdate=${Math.floor(since.getTime() / 1000)}&site=stackoverflow&pagesize=${Math.min(100, maxItems)}&page=${page}&filter=withbody${key}`;
-      const res = await fetchJson<Resp>(url);
+      const url = `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=creation&q=${encodeURIComponent(phraseQuery(term))}&fromdate=${Math.floor(since.getTime() / 1000)}&site=stackoverflow&pagesize=${Math.min(100, maxItems)}&page=${page}&filter=withbody${key}`;
+      const res = await fetchJson<Resp>(url, { deadline });
       if (res.error_message) throw new Error(`Stack Exchange: ${res.error_message}`);
       for (const q of res.items) {
         if (out.length >= maxItems) break;

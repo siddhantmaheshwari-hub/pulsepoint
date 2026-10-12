@@ -7,3 +7,7 @@ out
 *.tsbuildinfo
 next-env.d.ts
 coverage
+
+# All env files are local-only; the template is the one exception
+.env*
+!.env.example

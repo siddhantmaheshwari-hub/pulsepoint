@@ -2,13 +2,14 @@ import 'server-only';
 import { db } from '../db';
 import { env } from '../env';
 import { geminiJson } from '../gemini';
-import { HttpError } from '../http';
+import { DeadlineError, HttpError } from '../http';
 import { analysisBatchSchema, cleanAnalysis } from '../schemas';
 import { truncate } from '../text';
 import { ANALYSIS_SCHEMA, ANALYSIS_SYSTEM, ANALYSIS_VERSION } from './prompts';
 
 const BATCH = 10;
 const MAX_ATTEMPTS = 3;
+const REQUEUE_DAYS = 56; // the 8 weeks the brief charts
 
 interface Pending {
   id: string; source_id: string; title: string; body_excerpt: string; tags: string[]; source_meta: Record<string, unknown>;
@@ -16,6 +17,20 @@ interface Pending {
 }
 
 export interface AnalyzeResult { analyzed: number; relevant: number; failed: number; batches: number; remaining: number; quotesRejected: number }
+
+/**
+ * Failures that say nothing about the discussions themselves (overload, rate limit, timeout,
+ * dropped connection). They must not use up a discussion's analysis attempts.
+ */
+export function isTransient(e: unknown): boolean {
+  if (e instanceof DeadlineError) return true;
+  if (e instanceof HttpError) return e.status === 429 || e.status >= 500;
+  const err = e as { name?: string; code?: string; cause?: { code?: string } } | null;
+  if (err?.name === 'AbortError' || err?.name === 'TimeoutError') return true;
+  const code = err?.code ?? err?.cause?.code ?? '';
+  return ['CONNECTION_CLOSED', 'CONNECTION_ENDED', 'CONNECTION_DESTROYED', 'CONNECT_TIMEOUT', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'].includes(code)
+    || (e instanceof TypeError && /fetch failed/i.test(e.message));
+}
 
 /** Neutralise attempts to break out of the <discussion> data fence. */
 const fence = (s: string) => s.replace(/<\/?\s*discussion/gi, '[tag]');
@@ -25,6 +40,12 @@ export async function analyzePending(deadline: number, errors: { stage: string; 
   const r: AnalyzeResult = { analyzed: 0, relevant: 0, failed: 0, batches: 0, remaining: 0, quotesRejected: 0 };
   const topics = await sql<{ slug: string; name: string }[]>`select slug, name from topics where is_active order by created_at`;
   const topicSlugs = new Set(topics.map((t) => t.slug));
+
+  // A prompt change bumps ANALYSIS_VERSION and reports only read the current version, so re-queue recent
+  // discussions that have no analysis under it. Older history keeps its earlier reading.
+  await sql`update discussions d set analysis_status = 'pending', analysis_attempts = 0
+    where d.analysis_status = 'done' and d.duplicate_of is null and d.created_at_source >= now() - ${REQUEUE_DAYS + ' days'}::interval
+      and not exists (select 1 from discussion_analyses a where a.discussion_id = d.id and a.analysis_version = ${ANALYSIS_VERSION})`;
 
   while (Date.now() < deadline - 20_000) {
     const batch = await sql<Pending[]>`
@@ -49,17 +70,18 @@ export async function analyzePending(deadline: number, errors: { stage: string; 
     ].join('\n\n');
 
     try {
-      const parsed = analysisBatchSchema.parse(await geminiJson({ system: ANALYSIS_SYSTEM, user, schema: ANALYSIS_SCHEMA }));
+      const parsed = analysisBatchSchema.parse(await geminiJson({ system: ANALYSIS_SYSTEM, user, schema: ANALYSIS_SCHEMA, deadline }));
       const byRef = new Map(parsed.items.map((i) => [i.ref, i]));
       const analyses: Record<string, unknown>[] = [];
       const pains = new Map<string, { key: string; label: string; first_seen_at: string; last_seen_at: string }>();
       const status: [string, string][] = [];
+      const tally = { analyzed: 0, relevant: 0, failed: 0, quotesRejected: 0 };
 
       for (const [ref, d] of refs) {
         const item = byRef.get(ref);
-        if (!item) { status.push([d.id, 'failed']); r.failed++; continue; }
+        if (!item) { status.push([d.id, 'failed']); tally.failed++; continue; }
         const c = cleanAnalysis(item, `${d.title}\n${d.body_excerpt}`, topicSlugs);
-        if (item.evidence_quote && !c.evidence_verified) r.quotesRejected++;
+        if (item.evidence_quote && !c.evidence_verified) tally.quotesRejected++;
         if (c.pain_point_key) {
           const p = pains.get(c.pain_point_key);
           const at = d.created_at_source;
@@ -74,8 +96,8 @@ export async function analyzePending(deadline: number, errors: { stage: string; 
           evidence_quote: c.evidence_quote, evidence_verified: c.evidence_verified, confidence: c.confidence,
         });
         status.push([d.id, 'done']);
-        r.analyzed++;
-        if (c.is_relevant) r.relevant++;
+        tally.analyzed++;
+        if (c.is_relevant) tally.relevant++;
       }
 
       // One transaction per batch: catalog, analyses and statuses land together or not at all.
@@ -98,12 +120,16 @@ export async function analyzePending(deadline: number, errors: { stage: string; 
         await tx`update discussions d set analysis_status = u.status, analysis_attempts = d.analysis_attempts + 1
           from (values ${tx(status)}) as u(id, status) where d.id = u.id::uuid`;
       });
+      // Counted only after the batch committed.
+      r.analyzed += tally.analyzed; r.relevant += tally.relevant; r.failed += tally.failed; r.quotesRejected += tally.quotesRejected;
     } catch (e) {
       r.failed += batch.length;
       errors.push({ stage: 'analyze', message: (e as Error).message.slice(0, 400) });
+      if (isTransient(e)) break; // outage, overload, quota or time budget: leave the batch pending for the next run
+      // The model answered but the answer was unusable: that costs the batch one of its attempts.
       await sql`update discussions set analysis_status = 'failed', analysis_attempts = analysis_attempts + 1
         where id = any(${sql.array(batch.map((d) => d.id))}::uuid[])`;
-      if (e instanceof HttpError && (e.status === 429 || e.status === 403 || e.status === 400)) break; // quota/auth/config: retry next run
+      if (e instanceof HttpError && (e.status === 403 || e.status === 400)) break; // auth/config: retry next run
     }
   }
 

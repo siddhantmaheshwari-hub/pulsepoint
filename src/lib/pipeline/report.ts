@@ -15,7 +15,7 @@ const J = (v: unknown) => db().json(v as postgres.JSONValue);
 
 type SourceStats = Record<string, { failures: number; requests: number }>;
 
-export async function generateReport(runId: string, trigger: 'cron_weekly' | 'manual', errors: { stage: string; message: string }[], liveSources: SourceStats = {}, now = new Date()) {
+export async function generateReport(runId: string, trigger: 'cron_weekly' | 'manual', errors: { stage: string; message: string }[], liveSources: SourceStats = {}, now = new Date(), deadline?: number) {
   const sql = db();
   const w = reportWindows(now, env.tzOffsetMinutes);
   const ps = w.previousStart.toISOString(), cs = w.currentStart.toISOString(), ce = w.currentEnd.toISOString();
@@ -94,7 +94,7 @@ export async function generateReport(runId: string, trigger: 'cron_weekly' | 'ma
   if (top.length) {
     try {
       const evidenceIds = new Set(top.flatMap((m) => m.evidence.map((e) => e.discussion_id)));
-      const raw = await geminiJson({ system: SYNTHESIS_SYSTEM, user: synthesisPrompt(top, dataQuality), schema: SYNTHESIS_SCHEMA, temperature: 0.2 });
+      const raw = await geminiJson({ system: SYNTHESIS_SYSTEM, user: synthesisPrompt(top, dataQuality), schema: SYNTHESIS_SCHEMA, temperature: 0.2, deadline });
       synthesis = validateSynthesis(raw, evidenceIds, new Set(top.map((m) => m.pain_point_key)));
     } catch (e) {
       errors.push({ stage: 'synthesis', message: (e as Error).message.slice(0, 400) });

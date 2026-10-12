@@ -1,7 +1,11 @@
 // Applies db/migrations/*.sql in order, once each. Usage: DATABASE_URL=... npm run db:migrate
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
+
+// Local convenience: read .env.local when DATABASE_URL isn't already in the environment.
+if (!process.env.DATABASE_URL && fs.existsSync('.env.local')) process.loadEnvFile('.env.local');
 
 const raw = process.env.DATABASE_URL;
 if (!raw) { console.error('DATABASE_URL is not set'); process.exit(1); }
@@ -11,7 +15,7 @@ for (const k of ['channel_binding', 'gssencmode', 'sslcert', 'sslkey', 'sslcrl',
 const url = parsed.toString();
 const local = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
 const sql = postgres(url, { ssl: local ? false : 'require', max: 1, onnotice: () => {} });
-const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'db', 'migrations');
+const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'db', 'migrations');
 
 try {
   await sql`create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())`;

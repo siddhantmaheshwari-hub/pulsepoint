@@ -178,6 +178,17 @@ describe.skipIf(!URL_)('pipeline on Postgres', () => {
     await sql`update collection_runs set status = 'failed' where status = 'running'`;
   });
 
+  it('closes a run that died without recording a result, then proceeds', async () => {
+    // Seen live: a run left "running" forever in System health while the next one started alongside it.
+    const [dead] = await sql`insert into collection_runs (trigger, mode, started_at) values ('manual', 'collect', now() - interval '10 minutes') returning id`;
+    const res = await runPipeline('manual', 'collect');
+    expect(res.status).not.toBe('skipped');
+    const [row] = await sql`select status, finished_at, errors from collection_runs where id = ${dead.id}`;
+    expect(row.status).toBe('failed');
+    expect(row.finished_at).not.toBeNull();
+    expect(row.errors[0].message).toMatch(/did not finish/);
+  }, 60_000);
+
   it('manages keywords from the UI actions without code changes', async () => {
     const { addKeyword, addTopic } = await import('@/app/topics/actions');
     const [t] = await sql`select id from topics where slug = 'code-review'`;

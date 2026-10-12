@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/ui/bits';
+import { env } from '@/lib/env';
 import { ANALYSIS_VERSION } from '@/lib/pipeline/prompts';
 import { TREND_RULES } from '@/lib/trends';
 
@@ -9,7 +10,7 @@ export default function SettingsPage() {
   const tz = Number(process.env.REPORT_TZ_OFFSET_MINUTES ?? 330);
   const rows: [string, string, string][] = [
     ['Database (DATABASE_URL)', set('DATABASE_URL') ? 'Connected' : 'Missing', 'Neon Postgres, pooled connection'],
-    ['Gemini key (GEMINI_API_KEY)', set('GEMINI_API_KEY') ? 'Set' : 'Missing', `Model: ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}`],
+    ['Gemini key (GEMINI_API_KEY)', set('GEMINI_API_KEY') ? 'Set' : 'Missing', `Model: ${env.geminiModel}`],
     ['Scheduler secret (CRON_SECRET)', set('CRON_SECRET') ? 'Set' : 'Missing', 'Protects the scheduled endpoints'],
     ['Dashboard login', set('DASHBOARD_PASSWORD') ? `User “${process.env.DASHBOARD_USER || 'sumit'}”` : 'No password — changes disabled', 'HTTP Basic auth'],
     ['Stack Exchange key', set('STACKEXCHANGE_KEY') ? 'Set (10,000 requests/day)' : 'Not set (300 requests/day)', 'Optional'],

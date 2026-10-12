@@ -4,7 +4,11 @@ import type { Synthesis } from './types';
 
 const kind = z.enum(['workflow_pain', 'unmet_need', 'isolated_bug', 'how_to_question', 'opinion', 'not_relevant']);
 const resolution = z.enum(['unresolved', 'partially_resolved', 'resolved', 'unknown']);
-const optStr = z.string().max(600).nullish().transform((v) => (v && v.trim() ? v.trim() : null));
+// Length limits TRIM rather than reject: live, one discussion naming 11 tools made Gemini's whole batch of 10 fail.
+// Wrong types or unknown enum values still reject, because that output really is malformed.
+const clip = (n: number) => z.string().transform((v) => truncate(v.trim(), n));
+const clipList = <T extends z.ZodTypeAny>(item: T, n: number) => z.array(item).transform((a) => a.slice(0, n));
+const optStr = z.string().nullish().transform((v) => (v && v.trim() ? truncate(v.trim(), 600) : null));
 
 export const analysisItemSchema = z.object({
   ref: z.string(),
@@ -16,10 +20,10 @@ export const analysisItemSchema = z.object({
   affected_workflow: optStr,
   reported_impact: optStr,
   existing_workaround: optStr,
-  tools_mentioned: z.array(z.string().max(60)).max(10).nullish(),
+  tools_mentioned: clipList(clip(60), 10).nullish(),
   resolution_status: resolution,
-  evidence_quote: z.string().max(400).nullish(),
-  confidence: z.number().min(0).max(1),
+  evidence_quote: z.string().nullish(), // verified verbatim first, truncated afterwards in cleanAnalysis
+  confidence: z.number().transform((n) => Math.min(1, Math.max(0, n))),
 });
 export const analysisBatchSchema = z.object({ items: z.array(analysisItemSchema) });
 export type AnalysisItem = z.infer<typeof analysisItemSchema>;
@@ -65,11 +69,11 @@ export function cleanAnalysis(item: AnalysisItem, sourceText: string, allowedTop
 }
 
 const synthesisSchema = z.object({
-  headline: z.string().max(300),
-  findings: z.array(z.object({ title: z.string().max(140), insight: z.string().max(700), pain_point_keys: z.array(z.string()), evidence_ids: z.array(z.string()) })).max(8),
-  underserved: z.array(z.object({ pain_point_key: z.string(), why: z.string().max(500), evidence_ids: z.array(z.string()) })).max(8),
-  investigate: z.array(z.object({ recommendation: z.string().max(240), rationale: z.string().max(500), pain_point_keys: z.array(z.string()), evidence_ids: z.array(z.string()) })).max(6),
-  caveats: z.array(z.string().max(300)).max(6),
+  headline: clip(300),
+  findings: clipList(z.object({ title: clip(140), insight: clip(700), pain_point_keys: z.array(z.string()), evidence_ids: z.array(z.string()) }), 8),
+  underserved: clipList(z.object({ pain_point_key: z.string(), why: clip(500), evidence_ids: z.array(z.string()) }), 8),
+  investigate: clipList(z.object({ recommendation: clip(240), rationale: clip(500), pain_point_keys: z.array(z.string()), evidence_ids: z.array(z.string()) }), 6),
+  caveats: clipList(clip(300), 6),
 });
 
 /** Remove any claim that does not cite evidence we actually supplied. */

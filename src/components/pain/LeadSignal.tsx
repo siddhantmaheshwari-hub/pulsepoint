@@ -11,7 +11,8 @@ export function LeadSignal({ m, history, labels, topicName, periodStart, compare
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const quote = m.evidence.find((e) => e.quote)?.quote;
-  const accent = m.trend === 'rising' ? '#F08A6A' : '#E3B33E';
+  // Colour carries meaning: vermilion = rising, amber = newly observed, teal = neutral volume.
+  const accent = m.trend === 'rising' ? '#F08A6A' : m.trend === 'new' ? '#E3B33E' : '#7FA6A2';
   return (
     <section aria-labelledby="lead-h" className="flex flex-col rounded-panel bg-coal p-6 text-coal-text md:p-7">
       <p className="text-[13px] font-medium" style={{ color: accent }}>{WHY[m.trend]}</p>

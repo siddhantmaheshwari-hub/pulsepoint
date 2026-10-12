@@ -41,10 +41,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={GeistSans.variable}>
       <body>
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <Suspense><Sidebar nextBrief={nextFridayBrief()} /></Suspense>
+          <div className="contents" data-print-hide><Suspense><Sidebar nextBrief={nextFridayBrief()} /></Suspense></div>
           <div className="min-w-0 flex-1 lg:py-3 lg:pr-3">
             <div className="flex min-h-[calc(100vh-24px)] flex-col rounded-t-sheet bg-paper shadow-sheet lg:rounded-sheet">
-              <Suspense><TopBar periods={periods} freshness={fresh} /></Suspense>
+              <div className="contents" data-print-hide><Suspense><TopBar periods={periods} freshness={fresh} /></Suspense></div>
               <main id="main" className="flex-1 px-5 pb-16 pt-8 md:px-8 lg:px-10">{children}</main>
             </div>
           </div>

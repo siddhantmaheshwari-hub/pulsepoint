@@ -13,11 +13,12 @@ interface Issue {
 export const gitHub: SourceAdapter = {
   id: 'github',
   isAvailable: () => Boolean(env.githubToken),
-  async search(term, since, maxItems) {
+  async search(term, since, maxItems, deadline) {
     const q = `"${term}" in:title,body is:issue created:>=${since.toISOString().slice(0, 10)}`;
     const url = `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&sort=created&order=desc&per_page=${Math.min(50, maxItems)}`;
     const res = await fetchJson<{ items: Issue[] }>(url, {
       headers: { Authorization: `Bearer ${env.githubToken}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'developer-community-pulse' },
+      deadline,
     });
     return res.items.slice(0, maxItems).map((i) => ({
       sourceId: 'github' as const, externalId: String(i.id), url: i.html_url, title: i.title,

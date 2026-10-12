@@ -1,6 +1,6 @@
 import 'server-only';
 import { fetchJson } from '../http';
-import { stripHtml, truncate } from '../text';
+import { phraseQuery, stripHtml, truncate } from '../text';
 import type { RawDiscussion, SourceAdapter } from './types';
 
 interface Hit {
@@ -13,12 +13,12 @@ interface Hit {
 export const hackerNews: SourceAdapter = {
   id: 'hackernews',
   isAvailable: () => true,
-  async search(term, since, maxItems) {
+  async search(term, since, maxItems, deadline) {
     const threads = new Map<string, RawDiscussion>();
     const sinceS = Math.floor(since.getTime() / 1000);
     for (let page = 0; page < 5 && threads.size < maxItems; page++) {
-      const url = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(term)}&tags=(story,comment)&numericFilters=created_at_i>${sinceS}&hitsPerPage=100&page=${page}`;
-      const res = await fetchJson<{ hits: Hit[]; nbPages: number }>(url);
+      const url = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(phraseQuery(term))}&tags=(story,comment)&numericFilters=created_at_i>${sinceS}&hitsPerPage=100&page=${page}`;
+      const res = await fetchJson<{ hits: Hit[]; nbPages: number }>(url, { deadline });
       for (const h of res.hits) {
         const isComment = h._tags?.includes('comment');
         const threadId = String(isComment ? h.story_id ?? h.objectID : h.objectID);

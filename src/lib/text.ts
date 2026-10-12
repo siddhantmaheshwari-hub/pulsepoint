@@ -62,3 +62,12 @@ export function quoteIsVerbatim(quote: string | null | undefined, source: string
 export function slugify(s: string, max = 60): string {
   return s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max).replace(/-+$/g, '');
 }
+
+/**
+ * Search engines (Algolia, Stack Exchange) match the words of an unquoted query loosely, so most hits fail
+ * our exact-phrase check and waste the per-keyword item cap. Quoting multi-word terms asks for the phrase.
+ */
+export function phraseQuery(term: string): string {
+  const t = collapse(term.replace(/"/g, ' '));
+  return /\s/.test(t) ? `"${t}"` : t;
+}
