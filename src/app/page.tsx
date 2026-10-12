@@ -5,6 +5,7 @@ import { PainTable } from '@/components/pain/PainTable';
 import { ExportButtons } from '@/components/shell/ExportButtons';
 import { GenerateButton } from '@/components/shell/GenerateButton';
 import { AiMark, Empty, Metric, SourceChip } from '@/components/ui/bits';
+import { FeedbackButtons } from '@/components/ui/FeedbackButtons';
 import { TrendTag } from '@/components/ui/Trend';
 import { SetupNotice } from '@/components/SetupNotice';
 import { SegmentBar } from '@/components/viz/SegmentBar';
@@ -14,7 +15,7 @@ import { env, missingEnv } from '@/lib/env';
 import { briefMarkdown } from '@/lib/export';
 import { fmtDateTime, fmtPeriod, plural } from '@/lib/format';
 import { compareOn, type SP } from '@/lib/params';
-import { getSourceBreakdown, getWeeklyVolume, type DataQuality } from '@/lib/queries';
+import { getFeedback, getSourceBreakdown, getWeeklyVolume, type DataQuality } from '@/lib/queries';
 import { computeTrend } from '@/lib/trends';
 import { SOURCE_LABEL, type EvidenceItem, type SourceId, type TopicMetricRow } from '@/lib/types';
 
@@ -37,7 +38,8 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  const [volume, bySource] = await Promise.all([getWeeklyVolume(report.period_end, report.analysis_version), getSourceBreakdown(report)]);
+  const [volume, bySource, feedback] = await Promise.all([getWeeklyVolume(report.period_end, report.analysis_version), getSourceBreakdown(report), getFeedback(report.id)]);
+  const rated = (type: string, i: number) => feedback[`${type}:${i}`] ?? null;
   const t = report.totals, s = report.synthesis, dq = report.data_quality;
   const active = metrics.filter((m) => m.current_count > 0);
   const recurring = active.filter((m) => m.first_observed && Date.parse(m.first_observed) < Date.parse(report.period_start));
@@ -64,6 +66,7 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
             <div className="mt-5 max-w-[62ch] border-l-2 border-violet-line pl-4">
               <AiMark />
               <p className="mt-2 text-[15px] leading-relaxed text-ink-2"><span className="font-medium text-ink">{s.findings[0].title}.</span> {s.findings[0].insight}</p>
+              <FeedbackButtons reportId={report.id} itemType="finding" itemIndex={0} initial={rated('finding', 0)} label={s.findings[0].title} />
             </div>
           )}
           <p className="meta mt-5">Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'a manual run' : 'the Friday schedule'}. Numbers are computed by code; AI text is marked.</p>
@@ -149,12 +152,14 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
           {underserved.length ? (
             <ul className="mt-5 divide-y divide-line">
               {underserved.map((m) => {
-                const why = s?.underserved.find((u) => u.pain_point_key === m.pain_point_key);
+                const whyIndex = s?.underserved.findIndex((u) => u.pain_point_key === m.pain_point_key) ?? -1;
+                const why = whyIndex >= 0 ? s!.underserved[whyIndex] : undefined;
                 return (
                   <li key={m.pain_point_key} className="py-4 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-medium">{m.label}</p><span className="meta">{m.unresolved_count} of {m.current_count} unresolved, {m.distinct_sources} source{m.distinct_sources === 1 ? '' : 's'}</span></div>
                     {why && <p className="mt-1.5 text-sm leading-relaxed text-ink-2"><AiMark label="AI" /> <span className="ml-1">{why.why}</span></p>}
                     <EvidenceLinks ids={why?.evidence_ids ?? m.evidence.slice(0, 2).map((e) => e.discussion_id)} map={evidence} />
+                    {why && <FeedbackButtons reportId={report.id} itemType="underserved" itemIndex={whyIndex} initial={rated('underserved', whyIndex)} label={`Why ${m.label} is underserved`} />}
                   </li>
                 );
               })}
@@ -171,7 +176,8 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet text-[12px] font-semibold text-white">{i + 1}</span>
                   <div className="min-w-0"><p className="font-medium leading-snug">{r.recommendation}</p><p className="mt-1 text-sm leading-relaxed text-ink-2">{r.rationale}</p>
                     {r.pain_point_keys.length > 0 && <p className="meta mt-1">Related: {r.pain_point_keys.map((k) => label.get(k) ?? k).join(', ')}</p>}
-                    <EvidenceLinks ids={r.evidence_ids} map={evidence} /></div>
+                    <EvidenceLinks ids={r.evidence_ids} map={evidence} />
+                    <FeedbackButtons reportId={report.id} itemType="recommendation" itemIndex={i} initial={rated('recommendation', i)} label={r.recommendation} /></div>
                 </li>
               ))}
             </ol>
