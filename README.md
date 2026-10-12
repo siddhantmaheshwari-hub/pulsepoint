@@ -1,7 +1,7 @@
 # PulsePoint
 
 Developer community intelligence. 
-A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in a Neon Postgres database, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 08:00 IST.
+A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in a Neon Postgres database, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 06:00 IST and emails it to the team.
 
 - Numbers (counts, Δ, %Δ, trends) are computed by code, never by the model.
 - Quotes are displayed only when verified verbatim against the source text.
@@ -62,7 +62,11 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 | `GITHUB_TOKEN` | no | also enable `github` on the Topics page |
 | `REPORT_TZ_OFFSET_MINUTES` | no | default 330 (IST) |
 | `PIPELINE_BUDGET_MS` | no | default 240000 (< 300 s function limit) |
-| `SLACK_WEBHOOK_URL`, `APP_URL` | no | Friday notification with link |
+| `RESEND_API_KEY` | for email | Resend API key; emails the Friday brief |
+| `BRIEF_RECIPIENTS` | for email | comma-separated addresses |
+| `BRIEF_FROM` | no | default `PulsePoint <onboarding@resend.dev>` |
+| `APP_URL` | no | link in the email; on Vercel defaults to the production domain |
+| `SLACK_WEBHOOK_URL` | no | optional Friday Slack message |
 
 ### 5. Deploy (GitHub + Vercel)
 ```bash
@@ -71,7 +75,7 @@ git push -u origin main
 ```
 Vercel → Add New Project → import the repo → add the environment variables → Deploy. `vercel.json` registers two crons:
 - `0 1 * * *` → `/api/cron/daily` (collect + analyze, 06:30 IST)
-- `30 2 * * 5` → `/api/cron/weekly` (final pass + brief, Friday 08:00 IST)
+- `30 0 * * 5` → `/api/cron/weekly` (final pass + brief + email, Friday 06:00 IST; the Friday daily run re-sends the email only if it failed)
 
 Verify: open the URL, log in, run once manually, then check **Collection status**. In Vercel → Settings → Cron Jobs you can trigger each cron on demand.
 

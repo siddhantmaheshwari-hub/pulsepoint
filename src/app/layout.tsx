@@ -16,9 +16,9 @@ function nextFridayBrief(now = new Date()) {
   const target = new Date(ist);
   const add = (5 - ist.getUTCDay() + 7) % 7;
   target.setUTCDate(ist.getUTCDate() + add);
-  target.setUTCHours(8, 0, 0, 0);
+  target.setUTCHours(6, 0, 0, 0);
   if (target <= ist) target.setUTCDate(target.getUTCDate() + 7);
-  return `${new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(target)}, 08:00 IST`;
+  return `${new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(target)}, 06:00 IST`;
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

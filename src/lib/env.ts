@@ -23,5 +23,9 @@ export const env = {
   get tzOffsetMinutes() { return Number(process.env.REPORT_TZ_OFFSET_MINUTES ?? 330); },
   get budgetMs() { return Math.min(Number(process.env.PIPELINE_BUDGET_MS ?? 240_000), 280_000); },
   get slackWebhook() { return process.env.SLACK_WEBHOOK_URL || null; },
-  get appUrl() { return process.env.APP_URL || ''; },
+  // APP_URL wins; on Vercel the production domain is a safe fallback so email links still work.
+  get appUrl() { return process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : ''); },
+  get resendKey() { return process.env.RESEND_API_KEY || null; },
+  get briefFrom() { return process.env.BRIEF_FROM || 'PulsePoint <onboarding@resend.dev>'; },
+  get briefRecipients() { return process.env.BRIEF_RECIPIENTS || ''; },
 };
