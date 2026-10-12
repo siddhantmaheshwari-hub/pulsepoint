@@ -1,4 +1,4 @@
-# The Nine Checks — Developer Community Pulse
+# The Nine Checks — PulsePoint
 
 Framework: AI Basics, page 32. **Kill switches** (1–3): any NO → don't build in this form. **Sizing** (4–5): any NO → build something smaller. **Boundary** (6–9): any NO → put a human exactly here.
 

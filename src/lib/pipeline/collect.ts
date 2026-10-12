@@ -10,6 +10,7 @@ const DAY = 86_400_000;
 const DAILY_LOOKBACK_DAYS = 3; // overlap catches late-arriving/edited items and short outages
 const BACKFILL_DAYS = 15; // new keywords get enough history for a week-over-week comparison
 const CHUNK = 200;
+const BREAKER_THRESHOLD = 3;
 
 export interface CollectResult {
   sources: Record<string, { requests: number; failures: number; items: number; skipped?: string }>;
@@ -35,9 +36,12 @@ export async function collect(runId: string, deadline: number, errors: { stage: 
     const stat = (result.sources[src.id] = { requests: 0, failures: 0, items: 0 } as CollectResult['sources'][string]);
     if (!adapter?.isAvailable()) { stat.skipped = 'missing credentials'; continue; }
     const maxItems = Math.max(5, Math.min(100, src.config?.maxItemsPerKeyword ?? 25));
+    let consecutiveFailures = 0;
 
     for (const kw of cfg.keywords) {
       if (Date.now() > deadline) { result.stoppedForDeadline = true; kwFailed.add(kw.id); continue; }
+      // Circuit breaker: a source that is down shouldn't consume the whole run's time budget.
+      if (consecutiveFailures >= BREAKER_THRESHOLD) { kwFailed.add(kw.id); stat.skipped = `stopped after ${BREAKER_THRESHOLD} consecutive failures`; continue; }
       const since = new Date(now - (kw.backfilled_at ? DAILY_LOOKBACK_DAYS : BACKFILL_DAYS) * DAY);
       stat.requests++;
       try {
@@ -58,7 +62,9 @@ export async function collect(runId: string, deadline: number, errors: { stage: 
           }
           stat.items++;
         }
+        consecutiveFailures = 0;
       } catch (e) {
+        consecutiveFailures++;
         stat.failures++;
         kwFailed.add(kw.id);
         errors.push({ stage: 'collect', source: src.id, message: `${kw.term}: ${(e as Error).message}`.slice(0, 400) });

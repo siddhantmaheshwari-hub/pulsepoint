@@ -11,7 +11,7 @@ const uuid = z.string().uuid();
 const term = z.string().trim().min(2, 'Keyword must be at least 2 characters').max(80);
 const name = z.string().trim().min(2, 'Name must be at least 2 characters').max(80);
 
-function done(message: string): ActionState { revalidatePath('/topics'); return { ok: true, message }; }
+function done(message: string): ActionState { revalidatePath('/topics'); revalidatePath('/sources'); return { ok: true, message }; }
 function fail(message: string): ActionState { return { ok: false, message }; }
 
 export async function addTopic(_: ActionState, form: FormData): Promise<ActionState> {
@@ -56,5 +56,5 @@ export async function toggleSource(form: FormData) {
   const p = z.object({ id: z.enum(['hackernews', 'stackoverflow', 'github']), enabled: z.enum(['true', 'false']) }).safeParse({ id: form.get('id'), enabled: form.get('enabled') });
   if (!p.success) return;
   await db()`update sources set is_enabled = ${p.data.enabled === 'true'} where id = ${p.data.id}`;
-  revalidatePath('/topics');
+  revalidatePath('/sources');
 }

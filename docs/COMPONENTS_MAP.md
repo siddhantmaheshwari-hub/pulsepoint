@@ -1,4 +1,4 @@
-# Components Map — Developer Community Pulse
+# Components Map — PulsePoint
 
 Stages: **TRIGGER → INPUT → CONTEXT → PROCESSING → OUTPUT** (following the FlixMatch map, AI Basics p.33).
 **Database: Neon Postgres** (replaces Supabase; clearance confirmed). One database covers configuration, raw data, analyses and snapshots, so there is no second database to keep consistent. The app connects server-side with `postgres.js` over Neon's pooled connection string.
@@ -20,7 +20,7 @@ Stages: **TRIGGER → INPUT → CONTEXT → PROCESSING → OUTPUT** (following t
 
 ```mermaid
 flowchart LR
-  %% Developer Community Pulse — end-to-end architecture (editable Mermaid)
+  %% PulsePoint — end-to-end architecture (editable Mermaid)
   subgraph PM["Sumit / Product Manager"]
     PM1(["Opens Friday brief"])
     PM2(["Edits topics & keywords"])
@@ -32,10 +32,10 @@ flowchart LR
     C2[["Cron Fri 02:30 UTC = 08:00 IST<br/>/api/cron/weekly"]]
     HOST["Hosts Next.js app & serverless functions"]
   end
-  subgraph FE["Frontend — Next.js / React / Tailwind"]
-    F1["Friday brief: pulse ladder, filters, evidence drawer"]
-    F2["Topics & keywords manager"]
-    F3["Report history & collection status"]
+  subgraph FE["Frontend — PulsePoint (Next.js / React / Tailwind)"]
+    F1["Dashboard: Friday brief, lead signal, pain ranking, evidence drawer"]
+    F2["Topics & keywords, Sources"]
+    F3["Weekly reports, Pain points, Opportunities, Discussions, System health"]
   end
   subgraph BE["Backend — Route handlers & pipeline"]
     B0{"Auth: CRON_SECRET / Basic auth<br/>concurrency + idempotency guard"}
@@ -95,7 +95,7 @@ flowchart LR
 
 | Component (course part) | Implementation | Responsibilities | Inputs | Outputs | Connects to |
 |---|---|---|---|---|---|
-| **Frontend** | `src/app/*`, `src/components/*` (Next.js App Router, React, Tailwind) | Friday brief, filters (source/topic/trend/underserved), evidence drawer with weekly history, report history, collection status, topic/keyword management, manual run | Report snapshots, metrics, runs, topics (server-rendered) | User actions: run requests, keyword edits | Backend (route handlers, server actions); never Neon directly |
+| **Frontend** | `src/app/*`, `src/components/*` (Next.js App Router, React, Tailwind, design system in `docs/DESIGN.md`) | Nine sections: Dashboard (Friday brief), Weekly reports with week-vs-week comparison, Pain points, Opportunities, Discussions, Sources, Topics & keywords, System health, Settings; global search, week selector, comparison switch, freshness, Generate report; evidence drawer | Report snapshots, metrics, runs, topics (server-rendered) | User actions: run requests, keyword edits | Backend (route handlers, server actions); never Neon directly |
 | **Backend** | `src/lib/pipeline/*`, `src/app/api/*`, `src/middleware.ts` | Auth, orchestration with time budget, collection, normalization, dedupe, Gemini calls, validation, deterministic metrics, report storage, notifications | Cron/manual triggers, config, API responses, model JSON | Rows in Neon, JSON run summaries | All other components |
 | **Database** | Neon Postgres, `db/migrations/*.sql` applied by `npm run db:migrate` | Source of truth for config, discussions, mentions, analyses, pain-point catalog, immutable report snapshots, run logs; single server-side role; no public API | SQL from backend (batches wrapped in transactions) | Query results to backend | Backend only (`DATABASE_URL` server-side) |
 | **API** (external) | Hacker News Algolia, Stack Exchange v2.3, GitHub search (optional), Gemini Flash `generateContent`, Slack webhook (optional) | Supply live discussions; structured extraction and synthesis; notification | HTTP requests with keys from env | JSON | Backend |

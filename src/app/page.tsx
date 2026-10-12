@@ -1,172 +1,226 @@
 import Link from 'next/link';
-import { PulseLadder } from '@/components/PulseLadder';
-import { RunButton } from '@/components/RunButton';
+import { ArrowRight } from 'lucide-react';
+import { LeadSignal } from '@/components/pain/LeadSignal';
+import { PainTable } from '@/components/pain/PainTable';
+import { GenerateButton } from '@/components/shell/GenerateButton';
+import { AiMark, Empty, Metric, SourceChip } from '@/components/ui/bits';
+import { TrendTag } from '@/components/ui/Trend';
 import { SetupNotice } from '@/components/SetupNotice';
+import { SegmentBar } from '@/components/viz/SegmentBar';
+import { VolumeChart } from '@/components/viz/VolumeChart';
+import { loadBrief } from '@/lib/brief';
 import { missingEnv } from '@/lib/env';
-import { fmtDateTime, fmtPeriod } from '@/lib/format';
-import { getMetrics, getReport, listTopics, type DataQuality } from '@/lib/queries';
+import { fmtDateTime, fmtPeriod, plural } from '@/lib/format';
+import { compareOn, type SP } from '@/lib/params';
+import { getSourceBreakdown, getWeeklyVolume, type DataQuality } from '@/lib/queries';
+import { computeTrend } from '@/lib/trends';
 import { SOURCE_LABEL, type EvidenceItem, type SourceId, type TopicMetricRow } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
-
-export default async function BriefPage({ searchParams }: { searchParams: Promise<{ report?: string }> }) {
+export default async function BriefPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();
   if (missing.length) return <SetupNotice missing={missing} />;
-  const { report: reportId } = await searchParams;
-  const safeId = reportId && /^[0-9a-f-]{36}$/i.test(reportId) ? reportId : undefined;
-  const [report, { topics }] = await Promise.all([getReport(safeId), listTopics()]);
+  const sp = await searchParams;
+  const compare = compareOn(sp);
+  const { report, metrics, sparks, sparkLabels, topicNames, sources } = await loadBrief(sp);
 
   if (!report) {
     return (
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-semibold">No brief yet</h1>
-        <p className="mt-2 text-muted">Collect discussions from Hacker News and Stack Overflow for your monitored keywords, analyze them with Gemini Flash, and build the first brief. The first collection looks back 15 days so this week can be compared with last week.</p>
-        <div className="mt-5"><RunButton mode="full" primary /></div>
-        <p className="mt-4 text-sm text-muted">If analysis is still queued after the run, run it again. Check progress in <Link href="/runs">Collection status</Link>.</p>
+      <div className="mx-auto max-w-2xl pt-10">
+        <p className="eyebrow">Friday brief</p>
+        <h1 className="mt-2 text-display font-semibold">Your first brief is one run away</h1>
+        <p className="mt-4 text-[16px] leading-relaxed text-ink-muted">PulsePoint collects discussions from Hacker News and Stack Overflow for your monitored keywords, reads them with Gemini Flash, and compares this week with last week. The first run looks back 15 days so the comparison works from day one.</p>
+        <div className="mt-6 flex flex-wrap gap-3"><GenerateButton /><Link href="/topics" className="pill">Review keywords first</Link></div>
+        <p className="mt-4 text-sm text-ink-muted">A run takes up to four minutes. If discussions are still queued afterwards, run it again.</p>
       </div>
     );
   }
 
-  const metrics = await getMetrics(report.id);
-  const t = report.totals;
-  const s = report.synthesis;
-  const evidenceById = new Map<string, EvidenceItem>(metrics.flatMap((m) => m.evidence.map((e) => [e.discussion_id, e] as const)));
-  const labelByKey = new Map(metrics.map((m) => [m.pain_point_key, m.label]));
-  const periodLabel = fmtPeriod(report.period_start, report.period_end);
-  const deterministicHeadline = `${t.pain_discussions} discussions described a workflow pain or unmet need across ${t.pain_points_tracked} pain points; ${t.rising} rising and ${t.new} newly observed.`;
-  const underservedMetrics = metrics.filter((m) => m.underserved);
+  const [volume, bySource] = await Promise.all([getWeeklyVolume(report.period_end), getSourceBreakdown(report)]);
+  const t = report.totals, s = report.synthesis, dq = report.data_quality;
+  const active = metrics.filter((m) => m.current_count > 0);
+  const recurring = active.filter((m) => m.first_observed && Date.parse(m.first_observed) < Date.parse(report.period_start));
+  const lead = [...metrics].filter((m) => m.trend === 'rising' || m.trend === 'new').sort((a, b) => b.abs_change - a.abs_change || b.current_count - a.current_count)[0] ?? active[0];
+  const evidence = new Map<string, EvidenceItem>(metrics.flatMap((m) => m.evidence.map((e) => [e.discussion_id, e] as const)));
+  const label = new Map(metrics.map((m) => [m.pain_point_key, m.label]));
+  const underserved = metrics.filter((m) => m.underserved).slice(0, 3);
+  const topicMoves = topicMovement(metrics, topicNames);
+  const sourcesEnabled = sources.filter((x) => x.is_enabled).length;
+  const summary = `${plural(t.pain_discussions, 'discussion')} described a workflow pain or unmet need this week, across ${plural(t.pain_points_tracked, 'pain point')}${compare ? ` (${t.pain_discussions_previous} the week before)` : ''}. ${t.rising} rising, ${t.new} newly observed, ${t.declining} easing.`;
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-wrap items-start justify-between gap-6">
-        <div className="max-w-3xl">
-          <p className="text-sm text-muted">Friday brief for {periodLabel}{report.version > 1 ? ` (version ${report.version})` : ''}</p>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.01em] md:text-[34px]">{s?.headline ?? deterministicHeadline}</h1>
-          <p className="mt-3 text-xs text-muted">
-            Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'manual run' : 'Friday schedule'} · {s ? `AI summary by ${report.model}, numbers by code` : 'AI summary unavailable, numbers by code'} · analysis {report.analysis_version}
-          </p>
+    <div className="space-y-6">
+      {/* Briefing header */}
+      <section className="grid gap-8 pb-4 lg:grid-cols-12 lg:gap-10">
+        <div className="lg:col-span-7">
+          <p className="eyebrow">Friday brief for {fmtPeriod(report.period_start, report.period_end)}{report.version > 1 ? `, version ${report.version}` : ''}</p>
+          <h1 className="mt-3 max-w-[26ch] text-[30px] font-semibold leading-[1.12] tracking-[-0.025em] md:text-[38px]">{s?.headline ?? summary}</h1>
+          <p className="mt-5 max-w-[62ch] text-[16px] leading-relaxed text-ink-2">{s ? summary : 'The AI summary is unavailable for this report; every figure on this page is computed directly from the collected discussions.'}</p>
+          {s?.findings[0] && (
+            <div className="mt-5 max-w-[62ch] border-l-2 border-violet-line pl-4">
+              <AiMark />
+              <p className="mt-2 text-[15px] leading-relaxed text-ink-2"><span className="font-medium text-ink">{s.findings[0].title}.</span> {s.findings[0].insight}</p>
+            </div>
+          )}
+          <p className="meta mt-5">Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'a manual run' : 'the Friday schedule'}. Numbers are computed by code; AI text is marked.</p>
         </div>
-        <div className="flex flex-col gap-2"><RunButton mode="full" primary /><RunButton mode="report" /></div>
-      </header>
-
-      <section aria-label="Key figures" className="grid grid-cols-2 gap-x-8 gap-y-4 border-y border-line py-5 sm:grid-cols-3 lg:grid-cols-6">
-        <Figure value={t.discussions_analyzed} label="Discussions analyzed" sub={`of ${t.discussions_collected} collected`} />
-        <Figure value={t.relevant_discussions} label="Relevant to your space" />
-        <Figure value={t.pain_discussions} label="Pain discussions" sub={`${t.pain_discussions_previous} previous week`} />
-        <Figure value={t.keyword_mentions} label="Keyword mentions" sub="not unique discussions" />
-        <Figure value={t.rising} label="Rising" color="#C2410C" />
-        <Figure value={t.new} label="Newly observed" color="#5B47B0" />
+        <div className="lg:col-span-5">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-8 rounded-panel border border-line bg-panel p-6">
+            <Metric value={t.discussions_analyzed} label="Unique discussions analysed" sub={`${t.keyword_mentions} keyword mentions`} />
+            <Metric value={recurring.length} label="Recurring pain points" sub="seen before this week" />
+            <Metric value={t.new} label="Newly observed" sub="no discussions last week" accent={t.new ? '#A06A08' : undefined} />
+            <Metric value={sourcesEnabled} label="Sources monitored" sub={sources.filter((x) => x.is_enabled).map((x) => x.name).join(', ')} />
+            <div className="col-span-2">
+              <div className="mb-2 flex items-baseline justify-between"><p className="text-[13px] font-medium text-ink-2">Analysis coverage</p><p className="meta">{dq.analysis_coverage === null ? 'no discussions' : `${Math.round(dq.analysis_coverage * 100)}% of collected`}</p></div>
+              <SegmentBar height="h-7" segments={[
+                { label: 'Analysed', value: t.discussions_analyzed, className: 'bg-coal text-coal-text' },
+                { label: 'Waiting for analysis', value: Math.max(0, t.discussions_collected - t.discussions_analyzed), className: 'bg-sunk text-ink-muted', hatch: true },
+                { label: 'Duplicates excluded', value: t.duplicates_excluded, className: 'border border-line text-ink-muted' },
+              ]} />
+              <p className="meta mt-2">{t.discussions_collected} collected · {t.duplicates_excluded} duplicates excluded</p>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <PulseLadder metrics={metrics} topics={topics.map((x) => ({ slug: x.slug, name: x.name }))} periodLabel={periodLabel} />
+      {/* Lead signal + ranking */}
+      <section className="grid items-start gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          {lead ? <LeadSignal m={lead} history={sparks[lead.pain_point_key] ?? []} labels={sparkLabels} topicName={lead.topic_slug ? topicNames[lead.topic_slug] ?? null : null} periodStart={report.period_start} compare={compare} />
+            : <div className="h-full rounded-panel bg-coal p-7 text-coal-muted">No pain discussions this week.</div>}
+        </div>
+        <div className="lg:col-span-7">
+          <div className="mb-3 flex items-baseline justify-between"><h2 className="h-panel">What developers struggled with</h2><Link href="/pain-points" className="link inline-flex items-center gap-1 text-[13px]">All pain points<ArrowRight size={13} aria-hidden="true" /></Link></div>
+          {metrics.length ? <PainTable metrics={metrics} sparks={sparks} sparkLabels={sparkLabels} topics={topicNames} periodStart={report.period_start} compare={compare} variant="compact" limit={6} />
+            : <Empty title="No pain points yet">Discussions were collected but none described a workflow pain this week.</Empty>}
+        </div>
+      </section>
 
-      <div className="grid gap-10 lg:grid-cols-2">
-        <section aria-labelledby="findings-h">
-          <h2 id="findings-h" className="h-section">What stands out</h2>
-          <p className="mt-0.5 text-xs text-muted">AI interpretation. Each point links to the discussions it is based on; uncited claims are removed.</p>
-          {s?.findings.length ? (
-            <ul className="mt-4 space-y-5">
-              {s.findings.map((f, i) => (
-                <li key={i}>
-                  <p className="font-medium">{f.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink/85">{f.insight}</p>
-                  <EvidenceLinks ids={f.evidence_ids} map={evidenceById} />
+      {/* Analytics row */}
+      <section className="grid gap-6 lg:grid-cols-12">
+        <div className="panel panel-pad lg:col-span-5">
+          <h2 className="h-panel">Discussion volume</h2><p className="meta mt-0.5">Unique discussions per week, last 8 weeks</p>
+          <div className="mt-5"><VolumeChart data={volume} /></div>
+        </div>
+        <div className="panel panel-pad lg:col-span-4">
+          <h2 className="h-panel">Where pain is surfacing</h2><p className="meta mt-0.5">Pain discussions by source this week</p>
+          <div className="mt-5"><SegmentBar segments={bySource.filter((b) => b.cur_pain > 0).map((b, i) => ({ label: SOURCE_LABEL[b.id], value: b.cur_pain, className: ['bg-coal text-coal-text', 'bg-teal text-ink', 'bg-sunk text-ink-2'][i] ?? 'bg-sunk' }))} /></div>
+          <ul className="mt-5 divide-y divide-line">
+            {bySource.filter((b) => b.is_enabled || b.cur_collected).map((b) => {
+              const tr = computeTrend(b.cur_pain, b.prev_pain);
+              return (
+                <li key={b.id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <SourceChip id={b.id} /><span className="flex-1 truncate">{b.name}</span>
+                  <span className="tabular-nums"><span className="font-semibold">{b.cur_pain}</span>{compare && <span className="text-ink-faint"> / {b.prev_pain}</span>}</span>
+                  {compare && <TrendTag trend={tr.trend} pct={tr.pctChange} size="sm" />}
                 </li>
-              ))}
-            </ul>
-          ) : <p className="mt-4 text-sm text-muted">No AI findings for this report. The counts above are complete without it.</p>}
-        </section>
+              );
+            })}
+          </ul>
+          <Link href="/sources" className="link mt-3 inline-block text-[13px]">Source details</Link>
+        </div>
+        <div className="panel panel-pad lg:col-span-3">
+          <h2 className="h-panel">Topic movement</h2><p className="meta mt-0.5">Pain discussions per topic</p>
+          <ul className="mt-4 space-y-3.5">
+            {topicMoves.map((tm) => (
+              <li key={tm.slug}>
+                <div className="flex items-start justify-between gap-2 text-sm"><span className="leading-snug">{tm.name}</span>{compare ? <TrendTag trend={tm.trend.trend} pct={tm.trend.pctChange} size="sm" /> : null}</div>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="relative h-1.5 flex-1 rounded-full bg-sunk" aria-hidden="true"><span className="absolute inset-y-0 left-0 rounded-full bg-coal" style={{ width: `${(tm.trend.current / tm.max) * 100}%` }} /></span>
+                  <span className="w-12 text-right text-xs tabular-nums text-ink-muted">{tm.trend.current}{compare ? ` / ${tm.trend.previous}` : ''}</span>
+                </div>
+              </li>
+            ))}
+            {!topicMoves.length && <li className="text-sm text-ink-muted">No categorised pain this week.</li>}
+          </ul>
+        </div>
+      </section>
 
-        <section aria-labelledby="underserved-h">
-          <h2 id="underserved-h" className="h-section">Potentially underserved problems</h2>
-          <p className="mt-0.5 text-xs text-muted">Flagged by code when a pain point recurs (2+ discussions) and at least half remain unresolved.</p>
-          {underservedMetrics.length ? (
-            <ul className="mt-4 space-y-5">
-              {underservedMetrics.map((m) => {
+      {/* Opportunities + investigate */}
+      <section className="grid gap-6 lg:grid-cols-12">
+        <div className="panel panel-pad lg:col-span-7">
+          <div className="flex items-baseline justify-between gap-3"><h2 className="h-panel">Underserved problems</h2><Link href="/opportunities" className="link text-[13px]">All opportunities</Link></div>
+          <p className="meta mt-0.5">Flagged by code: 2+ discussions this week and at least half unresolved. One complaint is never enough.</p>
+          {underserved.length ? (
+            <ul className="mt-5 divide-y divide-line">
+              {underserved.map((m) => {
                 const why = s?.underserved.find((u) => u.pain_point_key === m.pain_point_key);
                 return (
-                  <li key={m.pain_point_key}>
-                    <p className="font-medium">{m.label}</p>
-                    <p className="mt-0.5 text-xs text-muted">{m.unresolved_count} of {m.current_count} unresolved this week · {m.distinct_sources} source{m.distinct_sources === 1 ? '' : 's'}</p>
-                    {why && <p className="mt-1 text-sm leading-relaxed text-ink/85">{why.why}</p>}
-                    <EvidenceLinks ids={why?.evidence_ids ?? m.evidence.slice(0, 3).map((e) => e.discussion_id)} map={evidenceById} />
+                  <li key={m.pain_point_key} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-medium">{m.label}</p><span className="meta">{m.unresolved_count} of {m.current_count} unresolved, {m.distinct_sources} source{m.distinct_sources === 1 ? '' : 's'}</span></div>
+                    {why && <p className="mt-1.5 text-sm leading-relaxed text-ink-2"><AiMark label="AI" /> <span className="ml-1">{why.why}</span></p>}
+                    <EvidenceLinks ids={why?.evidence_ids ?? m.evidence.slice(0, 2).map((e) => e.discussion_id)} map={evidence} />
                   </li>
                 );
               })}
             </ul>
-          ) : <p className="mt-4 text-sm text-muted">No pain point met the underserved rule this week.</p>}
-        </section>
-      </div>
+          ) : <p className="mt-5 text-sm text-ink-muted">No pain point met the underserved rule this week.</p>}
+        </div>
+        <div className="rounded-panel border border-violet-line bg-violet-soft/50 p-5 md:p-6 lg:col-span-5">
+          <div className="flex items-center gap-2"><h2 className="h-panel">Worth investigating before Monday</h2><AiMark label="AI" /></div>
+          <p className="meta mt-0.5">Suggestions to explore, not decisions. Each cites the discussions behind it.</p>
+          {s?.investigate.length ? (
+            <ol className="mt-5 space-y-5">
+              {s.investigate.map((r, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet text-[12px] font-semibold text-white">{i + 1}</span>
+                  <div className="min-w-0"><p className="font-medium leading-snug">{r.recommendation}</p><p className="mt-1 text-sm leading-relaxed text-ink-2">{r.rationale}</p>
+                    {r.pain_point_keys.length > 0 && <p className="meta mt-1">Related: {r.pain_point_keys.map((k) => label.get(k) ?? k).join(', ')}</p>}
+                    <EvidenceLinks ids={r.evidence_ids} map={evidence} /></div>
+                </li>
+              ))}
+            </ol>
+          ) : <p className="mt-5 text-sm text-ink-muted">No AI suggestions for this report.</p>}
+        </div>
+      </section>
 
-      {s?.investigate.length ? (
-        <section aria-labelledby="inv-h">
-          <h2 id="inv-h" className="h-section">Worth investigating before sprint planning</h2>
-          <p className="mt-0.5 text-xs text-muted">Suggestions to explore, not decisions. Prioritization stays with you.</p>
-          <ul className="mt-4 grid gap-5 md:grid-cols-2">
-            {s.investigate.map((r, i) => (
-              <li key={i} className="border-l-2 border-steel pl-4">
-                <p className="font-medium">{r.recommendation}</p>
-                <p className="mt-1 text-sm text-ink/85">{r.rationale}</p>
-                {r.pain_point_keys.length > 0 && <p className="mt-1 text-xs text-muted">Related: {r.pain_point_keys.map((k) => labelByKey.get(k) ?? k).join(', ')}</p>}
-                <EvidenceLinks ids={r.evidence_ids} map={evidenceById} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <DataQualityPanel dq={report.data_quality} metrics={metrics} caveats={s?.caveats ?? []} dropped={s?.dropped_unsupported ?? 0} />
+      <DataQualityStrip dq={dq} dropped={s?.dropped_unsupported ?? 0} caveats={s?.caveats ?? []} />
     </div>
   );
 }
 
-function Figure({ value, label, sub, color }: { value: number; label: string; sub?: string; color?: string }) {
-  return (
-    <div>
-      <p className="text-2xl font-semibold" style={color ? { color } : undefined}>{value ?? 0}</p>
-      <p className="text-sm">{label}</p>
-      {sub && <p className="text-xs text-muted">{sub}</p>}
-    </div>
-  );
+function topicMovement(metrics: TopicMetricRow[], names: Record<string, string>) {
+  const acc = new Map<string, { c: number; p: number }>();
+  for (const m of metrics) { if (!m.topic_slug) continue; const a = acc.get(m.topic_slug) ?? { c: 0, p: 0 }; a.c += m.current_count; a.p += m.previous_count; acc.set(m.topic_slug, a); }
+  const rows = [...acc].map(([slug, v]) => ({ slug, name: names[slug] ?? slug, trend: computeTrend(v.c, v.p) })).filter((r) => r.trend.trend !== 'none').sort((a, b) => b.trend.current - a.trend.current);
+  const max = Math.max(1, ...rows.map((r) => r.trend.current));
+  return rows.map((r) => ({ ...r, max }));
 }
 
 function EvidenceLinks({ ids, map }: { ids: string[]; map: Map<string, EvidenceItem> }) {
   const items = ids.map((id) => map.get(id)).filter(Boolean) as EvidenceItem[];
   if (!items.length) return null;
   return (
-    <ul className="mt-2 space-y-1">
-      {items.slice(0, 4).map((e) => (
-        <li key={e.discussion_id} className="text-xs">
-          <a href={e.url} target="_blank" rel="noopener noreferrer nofollow">{e.title}</a>
-          <span className="text-muted"> · {SOURCE_LABEL[e.source_id]}</span>
+    <ul className="mt-2.5 space-y-1">
+      {items.slice(0, 3).map((e) => (
+        <li key={e.discussion_id} className="flex items-center gap-2 text-[13px]">
+          <SourceChip id={e.source_id as SourceId} />
+          <a href={e.url} target="_blank" rel="noopener noreferrer nofollow" className="relative truncate text-ink-2 underline decoration-line-strong underline-offset-2 hover:text-violet-ink">{e.title}<span className="sr-only"> (opens in new tab)</span></a>
         </li>
       ))}
     </ul>
   );
 }
 
-function DataQualityPanel({ dq, metrics, caveats, dropped }: { dq: DataQuality; metrics: TopicMetricRow[]; caveats: string[]; dropped: number }) {
-  const notes: { tone: 'warn' | 'info'; text: string }[] = [];
-  if (!dq.has_previous_report) notes.push({ tone: 'info', text: 'First stored report for this period chain; previous-week counts come from backfilled history, not an earlier snapshot.' });
-  if (dq.unanalyzed_in_window > 0) notes.push({ tone: 'warn', text: `${dq.unanalyzed_in_window} collected discussions in the comparison window are not analyzed yet and are excluded from counts.` });
-  if (dq.analysis_coverage !== null && dq.analysis_coverage < 0.9) notes.push({ tone: 'warn', text: `Analysis coverage this week is ${Math.round(dq.analysis_coverage * 100)}%.` });
-  for (const [src, h] of Object.entries(dq.source_health ?? {})) if (h.failed_requests > 0) notes.push({ tone: 'warn', text: `${SOURCE_LABEL[src as SourceId] ?? src}: ${h.failed_requests} of ${h.requests} requests failed during the window; trends from this source may be understated.` });
-  if (dq.keywords_added_since_last_report?.length) notes.push({ tone: 'warn', text: `Keywords added since the last report: ${dq.keywords_added_since_last_report.join(', ')}. New keywords are backfilled 15 days, but part of any rise may reflect broader monitoring.` });
-  if (dq.keywords_removed_since_last_report?.length) notes.push({ tone: 'warn', text: `Keywords removed since the last report: ${dq.keywords_removed_since_last_report.join(', ')}.` });
-  if (dq.previous_week_revised) notes.push({ tone: 'info', text: `Previous-week pain discussions revised from ${dq.previous_week_revised.was} to ${dq.previous_week_revised.now} because of late-arriving or newly analyzed data. Stored snapshots are unchanged.` });
-  if (dq.insufficient_points) notes.push({ tone: 'info', text: `${dq.insufficient_points} pain point(s) have fewer than 3 discussions across both weeks; treat their trends as anecdotes.` });
-  if (dropped) notes.push({ tone: 'info', text: `${dropped} AI statement(s) were removed because they did not cite supplied evidence.` });
-  const verified = metrics.filter((m) => m.current_count > 0);
-  const vShare = verified.length ? verified.reduce((a, m) => a + (m.verified_share ?? 0) * m.current_count, 0) / verified.reduce((a, m) => a + m.current_count, 0) : null;
-
+function DataQualityStrip({ dq, dropped, caveats }: { dq: DataQuality; dropped: number; caveats: string[] }) {
+  const notes: { warn: boolean; text: string }[] = [];
+  if (!dq.has_previous_report) notes.push({ warn: false, text: 'First report in this chain: last week comes from backfilled history, not a stored snapshot.' });
+  if (dq.unanalyzed_in_window) notes.push({ warn: true, text: `${dq.unanalyzed_in_window} collected discussions not analysed yet and excluded from counts.` });
+  for (const [src, h] of Object.entries(dq.source_health ?? {})) if (h.failed_requests) notes.push({ warn: true, text: `${SOURCE_LABEL[src as SourceId] ?? src}: ${h.failed_requests} of ${h.requests} requests failed; its trends may be understated.` });
+  if (dq.keywords_added_since_last_report?.length) notes.push({ warn: true, text: `Keywords added since last report (${dq.keywords_added_since_last_report.map((k) => k.split(':')[1]).join(', ')}). Part of any rise may reflect wider monitoring.` });
+  if (dq.keywords_removed_since_last_report?.length) notes.push({ warn: true, text: `Keywords removed: ${dq.keywords_removed_since_last_report.map((k) => k.split(':')[1]).join(', ')}.` });
+  if (dq.previous_week_revised) notes.push({ warn: false, text: `Previous week revised from ${dq.previous_week_revised.was} to ${dq.previous_week_revised.now} pain discussions by late-arriving data.` });
+  if (dq.insufficient_points) notes.push({ warn: false, text: `${plural(dq.insufficient_points, 'pain point')} rest on fewer than 3 discussions across both weeks.` });
+  if (dropped) notes.push({ warn: false, text: `${plural(dropped, 'AI statement')} removed for citing no supplied evidence.` });
   return (
-    <section aria-labelledby="dq-h" className="rounded-lg border border-line bg-panel p-5">
-      <h2 id="dq-h" className="h-section">Data quality and confidence</h2>
-      <p className="mt-1 text-sm text-muted">{dq.collection_runs_in_window} collection runs over the two weeks · {vShare === null ? 'no evidence this week' : `${Math.round(vShare * 100)}% of current pain discussions have a verbatim-verified quote`}</p>
-      <ul className="mt-3 space-y-1.5 text-sm">
-        {notes.map((n, i) => <li key={i} className={n.tone === 'warn' ? 'text-signal' : 'text-ink/85'}>{n.text}</li>)}
-        {caveats.map((c, i) => <li key={`c${i}`} className="text-ink/85">AI caveat: {c}</li>)}
-        {!notes.length && !caveats.length && <li className="text-muted">No coverage issues detected.</li>}
+    <section aria-labelledby="dq-h" className="rounded-panel border border-line bg-sunk/60 px-5 py-4 md:px-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="dq-h" className="text-[13px] font-semibold">Data quality</h2>
+        <Link href="/health" className="link text-[12px]">System health</Link>
+      </div>
+      <ul className="mt-2 grid gap-x-8 gap-y-1.5 text-[13px] md:grid-cols-2">
+        {notes.map((n, i) => <li key={i} className={`flex gap-2 ${n.warn ? 'text-rise' : 'text-ink-2'}`}><span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${n.warn ? 'bg-rise' : 'bg-ink-faint'}`} aria-hidden="true" />{n.text}</li>)}
+        {caveats.map((c, i) => <li key={`c${i}`} className="flex gap-2 text-ink-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-violet" aria-hidden="true" /><span><span className="sr-only">AI caveat: </span>{c}</span></li>)}
+        {!notes.length && !caveats.length && <li className="text-ink-muted">No coverage issues detected for this week.</li>}
       </ul>
     </section>
   );

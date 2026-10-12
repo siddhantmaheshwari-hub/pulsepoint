@@ -21,7 +21,7 @@ export function middleware(req: NextRequest) {
       if (timingSafeEqual(u, user) && timingSafeEqual(rest.join(':'), password)) return NextResponse.next();
     } catch { /* fall through */ }
   }
-  return new NextResponse('Authentication required', { status: 401, headers: { 'WWW-Authenticate': 'Basic realm="Developer Community Pulse"' } });
+  return new NextResponse('Authentication required', { status: 401, headers: { 'WWW-Authenticate': 'Basic realm="PulsePoint"' } });
 }
 
 function timingSafeEqual(a: string, b: string): boolean {

@@ -158,6 +158,19 @@ describe.skipIf(!URL_)('pipeline on Postgres', () => {
     expect((await queries.getMetrics(firstReportId)).length).toBe(4);
   }, 60_000);
 
+  it('stops calling a source after 3 consecutive failures (circuit breaker)', async () => {
+    const { ADAPTERS } = await import('@/lib/sources');
+    const so = ADAPTERS.stackoverflow as unknown as { search: (t: string) => Promise<unknown> };
+    const original = so.search; let calls = 0;
+    so.search = async () => { calls++; throw new Error('network down'); };
+    const res = await runPipeline('manual', 'collect');
+    so.search = original;
+    const st = (res as unknown as { stats: { collect: { sources: Record<string, { failures: number; skipped?: string }> } } }).stats.collect.sources.stackoverflow;
+    expect(calls).toBe(3);
+    expect(st.failures).toBe(3);
+    expect(st.skipped).toMatch(/consecutive failures/);
+  }, 60_000);
+
   it('refuses to start while another run is in progress', async () => {
     await sql`insert into collection_runs (trigger, mode) values ('manual', 'full')`;
     const res = await runPipeline('manual', 'collect');

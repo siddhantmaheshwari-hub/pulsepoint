@@ -1,65 +1,47 @@
 import { SetupNotice } from '@/components/SetupNotice';
+import { PageHeader } from '@/components/ui/bits';
 import { missingEnv } from '@/lib/env';
-import { listTopics } from '@/lib/queries';
-import { toggleKeyword, toggleSource, toggleTopic } from './actions';
+import { one, type SP } from '@/lib/params';
+import { getKeywordCounts, getReport, listTopics, windowFor } from '@/lib/queries';
+import { toggleKeyword, toggleTopic } from './actions';
 import { AddKeywordForm, AddTopicForm } from './forms';
 
-export const dynamic = 'force-dynamic';
-
-export default async function TopicsPage() {
+export default async function TopicsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();
   if (missing.length) return <SetupNotice missing={missing} />;
-  const { topics, sources } = await listTopics();
+  const sp = await searchParams;
+  const w = windowFor(await getReport(one(sp.report)));
+  const [{ topics }, counts] = await Promise.all([listTopics(), getKeywordCounts(w.start, w.end)]);
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold">Topics & keywords</h1>
-      <p className="mt-1 text-sm text-muted">Stored in the Neon database and read at the start of every run — changes apply to the next collection without a redeploy. Pausing keeps history; the brief flags keyword changes so trends are not misread.</p>
-
-      <section className="mt-6" aria-labelledby="src-h">
-        <h2 id="src-h" className="h-section">Sources</h2>
-        <ul className="mt-2 divide-y divide-line rounded-lg border border-line bg-panel">
-          {sources.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-4 px-4 py-2.5 text-sm">
-              <span><span className="font-medium">{s.name}</span><span className="text-muted"> · up to {s.config?.maxItemsPerKeyword ?? 25} per keyword per run{s.id === 'github' ? ' · needs GITHUB_TOKEN' : ''}</span></span>
-              <form action={toggleSource}>
-                <input type="hidden" name="id" value={s.id} /><input type="hidden" name="enabled" value={String(!s.is_enabled)} />
-                <button className="btn">{s.is_enabled ? 'Pause' : 'Enable'}</button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="mt-8 space-y-5" aria-label="Topics">
+    <div className="max-w-4xl">
+      <PageHeader title="Topics & keywords" lead="What PulsePoint listens for. Stored in the database and read at the start of every run, so changes apply to the next collection without a redeploy. New keywords look back 15 days so they can be compared fairly." />
+      <div className="space-y-5">
         {topics.map((t) => (
-          <article key={t.id} className={`rounded-lg border border-line bg-panel p-4 ${t.is_active ? '' : 'opacity-60'}`}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-semibold">{t.name} {!t.is_active && <span className="text-xs font-normal text-muted">(paused)</span>}</h3>
-                {t.description && <p className="text-sm text-muted">{t.description}</p>}
-              </div>
-              <form action={toggleTopic}>
-                <input type="hidden" name="id" value={t.id} /><input type="hidden" name="active" value={String(!t.is_active)} />
-                <button className="btn">{t.is_active ? 'Pause topic' : 'Resume topic'}</button>
-              </form>
+          <article key={t.id} className={`panel p-6 ${t.is_active ? '' : 'border-dashed bg-paper'}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h2 className="text-[17px] font-semibold tracking-[-0.01em]">{t.name}{!t.is_active && <span className="ml-2 text-xs font-normal text-ink-muted">paused</span>}</h2>{t.description && <p className="mt-0.5 text-sm text-ink-muted">{t.description}</p>}</div>
+              <form action={toggleTopic}><input type="hidden" name="id" value={t.id} /><input type="hidden" name="active" value={String(!t.is_active)} /><button className="pill h-8">{t.is_active ? 'Pause topic' : 'Resume topic'}</button></form>
             </div>
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {t.keywords.map((k) => (
-                <li key={k.id}>
-                  <form action={toggleKeyword} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${k.is_active ? 'border-line' : 'border-dashed border-line text-muted line-through'}`}>
-                    <span>{k.term}</span>
-                    {!k.backfilled_at && k.is_active && <span className="text-[11px] text-fresh no-underline">backfill pending</span>}
-                    <input type="hidden" name="id" value={k.id} /><input type="hidden" name="active" value={String(!k.is_active)} />
-                    <button className="text-xs text-steel hover:underline" aria-label={`${k.is_active ? 'Pause' : 'Resume'} keyword ${k.term}`}>{k.is_active ? 'Pause' : 'Resume'}</button>
-                  </form>
-                </li>
-              ))}
+            <ul className="mt-5 divide-y divide-line border-y border-line">
+              {t.keywords.map((k) => {
+                const c = counts.get(k.id);
+                return (
+                  <li key={k.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 text-sm">
+                    <span className={`min-w-[10rem] flex-1 font-medium ${k.is_active ? '' : 'text-ink-faint line-through'}`}>{k.term}</span>
+                    {k.is_active && !k.backfilled_at && <span className="tag h-5 bg-fresh-soft px-2 text-[11px] text-fresh">Backfill on next run</span>}
+                    <span className="w-44 text-right text-xs tabular-nums text-ink-muted">{c ? `${c.discussions} discussions · ${c.mentions} mentions` : 'no matches this week'}</span>
+                    <form action={toggleKeyword}><input type="hidden" name="id" value={k.id} /><input type="hidden" name="active" value={String(!k.is_active)} />
+                      <button className="pill-quiet h-7" aria-label={`${k.is_active ? 'Pause' : 'Resume'} keyword ${k.term}`}>{k.is_active ? 'Pause' : 'Resume'}</button></form>
+                  </li>
+                );
+              })}
+              {!t.keywords.length && <li className="py-3 text-sm text-ink-muted">No keywords yet.</li>}
             </ul>
             <AddKeywordForm topicId={t.id} />
           </article>
         ))}
         <AddTopicForm />
-      </section>
+      </div>
     </div>
   );
 }

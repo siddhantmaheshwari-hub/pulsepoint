@@ -1,5 +1,6 @@
-# Developer Community Pulse
+# PulsePoint
 
+Developer community intelligence. 
 A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in a Neon Postgres database, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 08:00 IST.
 
 - Numbers (counts, Δ, %Δ, trends) are computed by code, never by the model.
@@ -7,10 +8,25 @@ A weekly developer-community intelligence brief for a code review automation sta
 - AI findings that don't cite supplied evidence are removed before display.
 - Every brief is stored as an immutable, versioned snapshot.
 
-Docs: [Nine Checks](docs/NINE_CHECKS.md) · [Components Map](docs/COMPONENTS_MAP.md) · [Research](docs/RESEARCH.md) · [Mermaid source](docs/architecture.mmd)
+Docs: [Design system](docs/DESIGN.md) · [Nine Checks](docs/NINE_CHECKS.md) · [Components Map](docs/COMPONENTS_MAP.md) · [Research](docs/RESEARCH.md) · [Mermaid source](docs/architecture.mmd)
 
 ## Stack
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Neon Postgres (`postgres.js` driver) · Gemini Flash REST API · Vercel (hosting + Cron) · GitHub.
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Geist · Lucide icons · Neon Postgres (`postgres.js` driver) · Gemini Flash REST API · Vercel (hosting + Cron) · GitHub.
+
+## Screens
+| Section | What it answers |
+|---|---|
+| Dashboard | The Friday brief: headline, summary, biggest change, ranked pain points, volume, sources, topic movement, underserved problems, what to investigate, data quality |
+| Weekly reports | Every stored brief and version; compare any two weeks |
+| Pain points | Full ranking with filters, sorting, 8-week sparklines, evidence drawer |
+| Opportunities | Recurring, mostly-unresolved problems with workarounds, evidence, confidence and limitations; single complaints listed only as early leads |
+| Discussions | Original posts beside the AI reading; search, filter by week, source, topic and classification |
+| Sources | Volume and pain per source, recent reliability, enable/pause |
+| Topics & keywords | What PulsePoint listens for, with matches per keyword this week |
+| System health | Last success, analysis queue, coverage, run log with errors |
+| Settings | Which settings are configured (never their values), schedule, trend rules |
+
+The top bar's week selector and "vs previous week" switch are stored in the URL (`?report=…&compare=off`) and carried across sections.
 
 ## Setup
 
@@ -71,6 +87,9 @@ TEST_DATABASE_URL=postgres://… npm run test:integration
                   # exact weekly counts/trends, uncited-claim removal, source-failure reporting, idempotent
                   # Friday report, concurrency guard, keyword management, history endpoint.
                   # WARNING: drops and recreates the public schema — use a throwaway database or a Neon branch.
+SEED_VISUAL_DB=postgres://… npx vitest run tests/fixtures/visual-seed.test.ts
+                  # LOCAL DESIGN QA ONLY: fills a throwaway database with 8 simulated weeks by running the
+                  # real pipeline with faked APIs. Never point it at production.
 npm run typecheck
 npm run lint
 npm run build
@@ -89,6 +108,7 @@ npm run build
 ## Security
 - The browser never connects to the database. `DATABASE_URL` is read only in server modules (`server-only` imports); all SQL is parameterized by the driver.
 - Each analysis batch and each report snapshot is written in a single transaction.
+- A source that fails 3 requests in a row is skipped for the rest of the run, so an outage can't consume the time budget.
 - Cron routes require `CRON_SECRET`; everything else sits behind Basic auth; mutations are blocked without a password.
 - Community text is stripped of HTML, rendered as plain text, and fenced in prompts with an instruction to ignore embedded instructions.
 - External links use `rel="noopener noreferrer nofollow"`.

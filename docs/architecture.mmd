@@ -1,5 +1,5 @@
 flowchart LR
-  %% Developer Community Pulse — end-to-end architecture (editable Mermaid)
+  %% PulsePoint — end-to-end architecture (editable Mermaid)
   subgraph PM["Sumit / Product Manager"]
     PM1(["Opens Friday brief"])
     PM2(["Edits topics & keywords"])
@@ -11,10 +11,10 @@ flowchart LR
     C2[["Cron Fri 02:30 UTC = 08:00 IST<br/>/api/cron/weekly"]]
     HOST["Hosts Next.js app & serverless functions"]
   end
-  subgraph FE["Frontend — Next.js / React / Tailwind"]
-    F1["Friday brief: pulse ladder, filters, evidence drawer"]
-    F2["Topics & keywords manager"]
-    F3["Report history & collection status"]
+  subgraph FE["Frontend — PulsePoint (Next.js / React / Tailwind)"]
+    F1["Dashboard: Friday brief, lead signal, pain ranking, evidence drawer"]
+    F2["Topics & keywords, Sources"]
+    F3["Weekly reports, Pain points, Opportunities, Discussions, System health"]
   end
   subgraph BE["Backend — Route handlers & pipeline"]
     B0{"Auth: CRON_SECRET / Basic auth<br/>concurrency + idempotency guard"}

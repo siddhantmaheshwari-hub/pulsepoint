@@ -10,6 +10,7 @@ Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via
 ## Commands
 - `npm run dev` · `npm test` · `npm run typecheck` · `npm run lint` · `npm run build`
 - `npm run db:migrate` — applies `db/migrations/*.sql` (idempotent)
+- `SEED_VISUAL_DB=… npx vitest run tests/fixtures/visual-seed.test.ts` — local design QA data only
 - `TEST_DATABASE_URL=… npm run test:integration` — full pipeline on Postgres; DROPS THE SCHEMA, never use production
 
 ## Rules
@@ -24,6 +25,8 @@ Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via
 ## Map
 - `src/lib/pipeline/` collect → analyze → report → run (orchestrator, 240 s budget, lock, idempotent Friday report)
 - `src/lib/sources/` Hacker News, Stack Overflow, GitHub adapters
-- `src/app/` pages (brief, reports, runs, topics) and API routes (cron, runs, pain-points)
+- `src/app/` nine sections (/, reports, pain-points, opportunities, discussions, sources, topics, health, settings) and API routes (cron, runs, pain-points)
+- `src/components/` shell (frame, sidebar, top bar), pain (table, drawer, lead signal), viz (charts), ui (tokens in use)
+- Design system: `docs/DESIGN.md` — follow it for any UI change
 - `src/middleware.ts` Basic auth; cron routes use `CRON_SECRET`
 - `docs/` Nine Checks, Components Map, research, Mermaid architecture

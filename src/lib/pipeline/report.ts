@@ -134,7 +134,7 @@ function synthesisPrompt(top: TopicMetricRow[], dq: object): string {
 async function notify(reportId: string, totals: { pain_discussions: number; rising: number; new: number }, s: Synthesis | null, end: Date) {
   if (!env.slackWebhook) return;
   const link = env.appUrl ? `${env.appUrl}/?report=${reportId}` : '';
-  const text = `*Developer Community Pulse — week ending ${new Date(end.getTime() - 1).toISOString().slice(0, 10)}*\n${s?.headline ?? 'Brief generated (AI summary unavailable).'}\n${totals.pain_discussions} pain discussions · ${totals.rising} rising · ${totals.new} new${link ? `\n<${link}|Open the brief>` : ''}`;
+  const text = `*PulsePoint — week ending ${new Date(end.getTime() - 1).toISOString().slice(0, 10)}*\n${s?.headline ?? 'Brief generated (AI summary unavailable).'}\n${totals.pain_discussions} pain discussions · ${totals.rising} rising · ${totals.new} new${link ? `\n<${link}|Open the brief>` : ''}`;
   const res = await fetch(env.slackWebhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
   if (!res.ok) throw new Error(`Slack webhook HTTP ${res.status}`);
 }
