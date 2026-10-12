@@ -105,7 +105,7 @@ vi.mock('@/lib/gemini', () => ({
 
 describe.skipIf(!URL_)('seed visual QA data', () => {
   it('runs the real pipeline over 8 simulated weeks', async () => {
-    Object.assign(process.env, { DATABASE_URL: URL_, GEMINI_API_KEY: 'test', GEMINI_MIN_INTERVAL_MS: '0', CRON_SECRET: 'x', DASHBOARD_PASSWORD: 'x', REPORT_TZ_OFFSET_MINUTES: '330' });
+    Object.assign(process.env, { DATABASE_URL: URL_, GEMINI_API_KEY: 'test', GEMINI_MIN_INTERVAL_MS: '0', CRON_SECRET: 'x', REPORT_TZ_OFFSET_MINUTES: '330' });
     const { default: postgres } = await import('postgres');
     const admin = postgres(URL_!, { max: 1, onnotice: () => {} });
     await admin.unsafe('drop schema public cascade; create schema public;');

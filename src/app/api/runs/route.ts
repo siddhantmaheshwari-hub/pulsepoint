@@ -8,7 +8,7 @@ export const maxDuration = 300;
 
 const body = z.object({ mode: z.enum(['collect', 'report', 'full']) });
 
-// Manual trigger from the dashboard (protected by Basic auth in middleware).
+// Manual trigger from the dashboard (open: no sign-in in this testing build).
 export async function POST(req: Request) {
   const missing = missingEnv();
   if (missing.length) return NextResponse.json({ error: `Missing environment variables: ${missing.join(', ')}` }, { status: 500 });

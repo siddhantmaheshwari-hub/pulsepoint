@@ -88,7 +88,7 @@ describe.skipIf(!URL_)('pipeline on Postgres', () => {
   let firstReportId = '';
 
   beforeAll(async () => {
-    Object.assign(process.env, { DATABASE_URL: URL_, GEMINI_API_KEY: 'test', GEMINI_MIN_INTERVAL_MS: '0', CRON_SECRET: 'x', DASHBOARD_PASSWORD: 'x', REPORT_TZ_OFFSET_MINUTES: '330' });
+    Object.assign(process.env, { DATABASE_URL: URL_, GEMINI_API_KEY: 'test', GEMINI_MIN_INTERVAL_MS: '0', CRON_SECRET: 'x', REPORT_TZ_OFFSET_MINUTES: '330' });
     const { default: postgres } = await import('postgres');
     const { normalizeDatabaseUrl } = await import('@/lib/dburl');
     const admin = postgres(normalizeDatabaseUrl(URL_!), { max: 1, onnotice: () => {} });

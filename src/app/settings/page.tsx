@@ -12,7 +12,7 @@ export default function SettingsPage() {
     ['Database (DATABASE_URL)', set('DATABASE_URL') ? 'Connected' : 'Missing', 'Neon Postgres, pooled connection'],
     ['Gemini key (GEMINI_API_KEY)', set('GEMINI_API_KEY') ? 'Set' : 'Missing', `Model: ${env.geminiModel}`],
     ['Scheduler secret (CRON_SECRET)', set('CRON_SECRET') ? 'Set' : 'Missing', 'Protects the scheduled endpoints'],
-    ['Dashboard login', set('DASHBOARD_PASSWORD') ? `User “${process.env.DASHBOARD_USER || 'sumit'}”` : 'No password — changes disabled', 'HTTP Basic auth'],
+    ['Dashboard access', 'Open — no sign-in', 'Testing build: anyone with the link can view and make changes'],
     ['Stack Exchange key', set('STACKEXCHANGE_KEY') ? 'Set (10,000 requests/day)' : 'Not set (300 requests/day)', 'Optional'],
     ['GitHub token', set('GITHUB_TOKEN') ? 'Set' : 'Not set', 'Optional; enables GitHub Issues'],
     ['Slack notification', set('SLACK_WEBHOOK_URL') ? 'On' : 'Off', 'Optional Friday message'],
@@ -23,7 +23,7 @@ export default function SettingsPage() {
       <section className="panel overflow-hidden">
         <h2 className="h-panel px-6 pt-5">Connections</h2>
         <dl className="mt-3 divide-y divide-line">{rows.map(([k, v, n]) => (
-          <div key={k} className="grid gap-1 px-6 py-3.5 text-sm sm:grid-cols-[1fr_1fr_1.2fr]"><dt className="font-medium">{k}</dt><dd className={v.startsWith('Missing') || v.startsWith('No password') ? 'text-rise' : 'text-ink-2'}>{v}</dd><dd className="text-ink-muted">{n}</dd></div>
+          <div key={k} className="grid gap-1 px-6 py-3.5 text-sm sm:grid-cols-[1fr_1fr_1.2fr]"><dt className="font-medium">{k}</dt><dd className={v.startsWith('Missing') ? 'text-rise' : 'text-ink-2'}>{v}</dd><dd className="text-ink-muted">{n}</dd></div>
         ))}</dl>
       </section>
       <section className="mt-6 grid gap-5 md:grid-cols-2">

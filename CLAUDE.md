@@ -30,5 +30,5 @@ Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via
 - `src/app/` nine sections (/, reports, pain-points, opportunities, discussions, sources, topics, health, settings) and API routes (cron, runs, pain-points)
 - `src/components/` shell (frame, sidebar, top bar), pain (table, drawer, lead signal), viz (charts), ui (tokens in use)
 - Design system: `docs/DESIGN.md` — follow it for any UI change
-- `src/middleware.ts` Basic auth; cron routes use `CRON_SECRET`
+- No dashboard sign-in (testing build); cron routes use `CRON_SECRET`
 - `docs/` Nine Checks, Components Map, research, Mermaid architecture

@@ -1,6 +1,6 @@
 import 'server-only';
 
-const REQUIRED = ['DATABASE_URL', 'GEMINI_API_KEY', 'CRON_SECRET', 'DASHBOARD_PASSWORD'] as const;
+const REQUIRED = ['DATABASE_URL', 'GEMINI_API_KEY', 'CRON_SECRET'] as const;
 
 export function missingEnv(): string[] {
   return REQUIRED.filter((k) => !process.env[k]);

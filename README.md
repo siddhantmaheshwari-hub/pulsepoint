@@ -46,7 +46,7 @@ Create an API key at Google AI Studio. Default model: `gemini-3.8-flash` (`gemin
 ```bash
 cp .env.example .env.local   # fill in values
 npm install
-npm run dev                  # http://localhost:3000 (login: DASHBOARD_USER / DASHBOARD_PASSWORD)
+npm run dev                  # http://localhost:3000 (no login)
 ```
 Click **Collect & generate brief**. The first run backfills 15 days; if analysis is still queued when the 4-minute budget ends, click it again (or let the daily cron finish it).
 
@@ -58,7 +58,6 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 | `GEMINI_MODEL` | no | default `gemini-3.8-flash` |
 | `GEMINI_MIN_INTERVAL_MS` | no | default 4000 (free-tier friendly) |
 | `CRON_SECRET` | yes | Vercel Cron sends it as a Bearer token automatically |
-| `DASHBOARD_USER` / `DASHBOARD_PASSWORD` | password yes | HTTP Basic auth; mutations are refused until set |
 | `STACKEXCHANGE_KEY` | no | raises quota from 300 to 10,000 req/day |
 | `GITHUB_TOKEN` | no | also enable `github` on the Topics page |
 | `REPORT_TZ_OFFSET_MINUTES` | no | default 330 (IST) |
@@ -109,7 +108,7 @@ npm run build
 - The browser never connects to the database. `DATABASE_URL` is read only in server modules (`server-only` imports); all SQL is parameterized by the driver.
 - Each analysis batch and each report snapshot is written in a single transaction.
 - A source that fails 3 requests in a row is skipped for the rest of the run, so an outage can't consume the time budget.
-- Cron routes require `CRON_SECRET`; everything else sits behind Basic auth; mutations are blocked without a password.
+- Cron routes require `CRON_SECRET`. The dashboard has no sign-in (testing build): anyone with the link can view it and make changes.
 - Community text is stripped of HTML, rendered as plain text, and fenced in prompts with an instruction to ignore embedded instructions.
 - External links use `rel="noopener noreferrer nofollow"`.
 
@@ -119,4 +118,4 @@ npm run build
 - Weekly counts for a niche keyword set may be small; read sufficiency labels before acting on a trend.
 - Neon's free tier suspends idle compute; the first query after a pause takes a moment longer (the daily cron keeps it warm on weekdays).
 - Vercel Hobby is for non-commercial use and limits each cron to once per day; a company tool should use Pro.
-- Single-user Basic auth; add an auth provider (e.g. Auth.js) if more people need access.
+- No sign-in: fine for a testing build; add auth before real use.

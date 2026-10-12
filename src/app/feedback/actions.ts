@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import type { Synthesis } from '@/lib/types';
 
-// Runs behind the Basic-auth middleware (POST requests require the dashboard password).
+// No sign-in in this testing build: anyone with the link can submit feedback.
 const input = z.object({
   reportId: z.string().uuid(),
   itemType: z.enum(['finding', 'underserved', 'recommendation']),

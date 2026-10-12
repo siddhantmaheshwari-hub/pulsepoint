@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db, isUniqueViolation } from '@/lib/db';
 import { slugify } from '@/lib/text';
 
-// Server actions run behind the Basic-auth middleware (POST requests require the dashboard password).
+// No sign-in in this testing build: anyone with the link can edit topics and keywords.
 export type ActionState = { ok: boolean; message: string } | null;
 
 const uuid = z.string().uuid();
