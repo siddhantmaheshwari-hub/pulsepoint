@@ -2,7 +2,9 @@
 
 Developer-community intelligence for Sumit, sole PM at a 15-person code review automation startup.
 Produces a Friday-morning brief: top developer pain points, week-over-week trends, underserved problems, with evidence links.
-Full build brief: `PULSEPOINT_BUILD_PROMPT.md`. Design references: `design-references/`.
+Full build brief and phases: `PULSEPOINT_BUILD_PROMPT.md`. Design system (source of truth): `docs/DESIGN.md`. Inspiration images: `design-references/`. Current UI: `docs/screenshots/`.
+
+Status: built, redesigned and tested with mocked APIs. NOT yet verified against live Hacker News, Stack Exchange, Gemini, Neon or Vercel — that is the first job.
 
 ## Stack
 Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via postgres.js (`src/lib/db.ts`) · Gemini Flash (REST, `src/lib/gemini.ts`) · Vercel + Cron (`vercel.json`) · GitHub.
