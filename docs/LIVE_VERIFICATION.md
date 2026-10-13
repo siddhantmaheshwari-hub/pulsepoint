@@ -82,7 +82,8 @@ Everything below was run against production unless marked local; numbers are cop
 | Private window: pages open without a password | ✅ 11 URLs return 200 with no `WWW-Authenticate` header (brief, weekly reports, pain points, topics, opportunities, discussions, sources, health, settings, month view, range view) |
 | `/api/cron/daily`, `/api/cron/weekly` without / with a wrong secret | ✅ 401 `{"error":"unauthorized"}` |
 | Generate report on production (`POST /api/runs`, same as the button) | ✅ HTTP 200 in 201 s (< 300 s limit): collect 13 s, analyse 166 s, report 22 s; 0 source failures (GitHub 13/13, HN 13/13, SO 13/13 requests); 82 new discussions; AI synthesis present; 0 errors. Status `partial` only because 21 discussions stayed queued for the next run |
-| Settings → Send test email (production) | ✅ delivered (confirmed by the owner in Step 2: brief readable, link opened the brief) · re-check after Step 8: **to confirm** |
+| Settings → Send test email (production) | ✅ delivered — confirmed by the owner in Step 2 and again after Step 8 (13 Oct) |
+| Vercel Cron fires on schedule | ✅ `cron_daily` ran unattended on 13 Oct at 01:49 UTC (07:19 IST; Hobby crons run within the scheduled hour): `succeeded`, 0 errors |
 | Vercel → Cron Jobs → Run weekly | **To confirm by the owner** (expected: `[email] sent` once, a second Run logs `[email] already_sent`) |
 | Email "never twice" rule | ✅ unit-tested on the real migration (PGlite) |
 | Failure alert, forced locally | ✅ invalid source URL → 3 alert attempts the same day → **1 email sent**, attempts 2–3 `already_alerted`, 1 `alerts` row (test row removed afterwards) |
