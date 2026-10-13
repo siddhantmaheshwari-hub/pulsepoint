@@ -13,8 +13,14 @@ export const metadata = { title: 'Sources' };
 const NOTE: Record<string, string> = {
   hackernews: 'Official Algolia search API. Stories and comments are folded into one thread per discussion.',
   stackoverflow: 'Official Stack Exchange API. Skews toward how-to questions, which are classified separately from pain.',
-  github: 'GitHub Issues search. Needs GITHUB_TOKEN. Dominated by repo-specific bugs, so off by default.',
+  github: 'GitHub Issues search. Needs GITHUB_TOKEN (read-only, public repositories). Many results are repo-specific bugs, which are counted separately from pain.',
 };
+// Platforms without a working integration. Status only; no adapters are built for these.
+const OTHER: [string, string, string][] = [
+  ['Reddit', 'Waiting for approval', 'API access requested; Reddit requires OAuth registration and approval for this use.'],
+  ['Discord', 'Not connected', 'No public search API; communities are private by default.'],
+  ['X', 'Not connected', 'Search API is paid and restricted; not used.'],
+];
 
 export default async function SourcesPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();
@@ -66,7 +72,18 @@ export default async function SourcesPage({ searchParams }: { searchParams: Prom
           );
         })}
       </div>
-      <p className="meta mt-6 max-w-3xl">Reddit isn’t connected: its API requires OAuth registration and restricts commercial use. Discord and private Slack communities are out of scope.</p>
+      <section className="panel mt-6 max-w-3xl overflow-hidden" aria-labelledby="other-h">
+        <h2 id="other-h" className="h-panel px-6 pt-5">Other platforms</h2>
+        <dl className="mt-3 divide-y divide-line text-sm">
+          {OTHER.map(([name, status, note]) => (
+            <div key={name} className="grid gap-1 px-6 py-3.5 sm:grid-cols-[140px_180px_1fr]">
+              <dt className="font-medium">{name}</dt>
+              <dd><span className={`tag h-5 px-2 text-[11px] ${status === 'Waiting for approval' ? 'bg-fresh-soft text-fresh' : 'bg-sunk text-ink-2'}`}>{status}</span></dd>
+              <dd className="text-ink-muted">{note}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
     </div>
   );
 }
