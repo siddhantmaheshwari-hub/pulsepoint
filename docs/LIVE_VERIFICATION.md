@@ -118,3 +118,15 @@ First collection (3-day look-back): 13 requests, 0 failures; **65 new GitHub thr
 - Resend free plan delivers only to the account owner until a domain is verified.
 - GitHub volume roughly doubles analysis work; runs can leave items queued for the next run.
 - Reddit pending approval; Discord and X not connected.
+
+## Premium redesign (13 Oct 2026, merged to `main`)
+
+Visual redesign only (no data, API, database or logic changes); built on the `redesign` branch, reviewed on a Vercel preview, then merged. Verified on the live URL after deploy:
+
+| Check | Result |
+|---|---|
+| All 10 pages at 1440 px and 390 px (also 1024 and 768 before merge) | ✅ no horizontal scroll, 0 console errors |
+| axe-core 4.10.2, WCAG 2.1 A/AA — brief, month view, Settings, Weekly reports (1440 + 390) | ✅ 0 violations |
+| Interactions: evidence drawer + Escape, "More" menu, Week ↔ Month switch, vote name prompt | ✅ all work, 0 errors |
+| Tests · typecheck · lint · build | ✅ 86 passed · clean · clean · clean |
+| `/api/cron/daily` without the secret | ✅ 401 |

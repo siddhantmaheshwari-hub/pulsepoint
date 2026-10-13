@@ -1,5 +1,5 @@
-Screenshots of the live app (https://pulsepoint-two.vercel.app) with **real data**, captured 13 Oct 2026
-(desktop at 1440 px with headless Chrome; mobile at a true 390 px viewport with Puppeteer).
+Screenshots of the live app (https://pulsepoint-two.vercel.app) with **real data** after the premium redesign, captured 13 Oct 2026
+(desktop: full pages at 1440 px; mobile: a true 390 px viewport, top of the page; both via Puppeteer).
 
 | File | Screen |
 |---|---|
