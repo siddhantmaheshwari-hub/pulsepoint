@@ -1,127 +1,116 @@
 # PulsePoint
 
-Developer community intelligence. 
-A weekly developer-community intelligence brief for a code review automation startup. It collects live discussions from Hacker News and Stack Overflow (GitHub Issues optional) for keywords stored in a Neon Postgres database, extracts structured pain points with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and publishes a **Friday Morning Brief** at 06:00 IST and emails it to the team.
+PulsePoint is an AI-powered **weekly developer-community intelligence digest** for Sumit, the PM of a code review automation startup. It collects live discussions from **Hacker News, Stack Overflow and GitHub Issues** for topics and keywords stored in a Neon Postgres database (editable in the app, no code changes), classifies them with **Gemini Flash**, computes week-over-week trends with **deterministic code**, and delivers a **Friday Morning Brief at 06:00 IST** — on the web and by email — showing the most frequent pain points, what is rising or easing, unresolved and underserved problems, and links to the original discussions. Sumit can switch to a month or any date range, the team (Neha, Kabir) votes on whether findings are useful, and a named maintainer is emailed if a scheduled run fails.
 
-- Numbers (counts, Δ, %Δ, trends) are computed by code, never by the model.
-- Quotes are displayed only when verified verbatim against the source text.
-- AI findings that don't cite supplied evidence are removed before display.
-- Every brief is stored as an immutable, versioned snapshot.
+- **Live app:** https://pulsepoint-two.vercel.app
+- **Code:** https://github.com/siddhantmaheshwari-hub/pulsepoint
+- **Components Map:** [docs/COMPONENTS_MAP.md](docs/COMPONENTS_MAP.md) · diagram [SVG](docs/components-map.svg) / [PNG](docs/components-map.png) · [Mermaid source](docs/architecture.mmd)
+- Also: [Live verification](docs/LIVE_VERIFICATION.md) · [Nine Checks](docs/NINE_CHECKS.md) · [Design system](docs/DESIGN.md) · [Research](docs/RESEARCH.md) · [Screenshots](docs/screenshots/)
 
-Docs: [Design system](docs/DESIGN.md) · [Nine Checks](docs/NINE_CHECKS.md) · [Components Map](docs/COMPONENTS_MAP.md) · [Research](docs/RESEARCH.md) · [Mermaid source](docs/architecture.mmd)
+Ground rules: numbers (counts, Δ, %Δ, trends) are computed by code, never by the model · quotes appear only when verified verbatim · AI statements that don't cite supplied evidence are removed · every weekly brief is an immutable, versioned snapshot · Gemini Flash only (Google AI Studio).
 
-## Stack
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Geist · Lucide icons · Neon Postgres (`postgres.js` driver) · Gemini Flash REST API · Vercel (hosting + Cron) · GitHub.
+## How to use it (for examiners)
+
+No login is needed; this is a testing build.
+
+1. **Open the brief** — https://pulsepoint-two.vercel.app opens on the **Friday brief**: the headline and the paragraph marked **AI reading** are written by Gemini from cited evidence; every number beside them is computed by code.
+2. **Read the ranking** — *What developers struggled with* lists pain points by unique discussions this week, with the change vs last week (**Rising / Easing / Stable / New**). *Underserved problems* are flagged by a code rule (2+ discussions, at least half unresolved). *Worth investigating before Monday* is the AI's suggestion list — suggestions, not decisions.
+3. **Open evidence** — click any pain point row (or **Open evidence**) to see the original Hacker News / Stack Overflow / GitHub threads, verified quotes and workarounds; links open the source.
+4. **Switch week / month / range** — in the top bar choose **Week** (stored weekly briefs, with the AI reading) or **Month** / **Range** (numbers computed on the fly from stored data, compared with the previous period of equal length; no AI text). Try [October 2026](https://pulsepoint-two.vercel.app/?view=month&m=2026-10).
+5. **Vote** — click **Useful / Not useful** on a finding, pick a name (Sumit, Neha or Kabir); the tally shows who voted. *Weekly reports* shows the usefulness rate across votes.
+6. **See how it's run** — *Topics & keywords* (what PulsePoint listens for, editable), and under **More**: *Sources* (health per source; Reddit pending approval, Discord and X not connected), *System health* (run log), *Settings* (what's configured, email and alert status).
 
 ## Screens
+
 | Section | What it answers |
 |---|---|
-| Dashboard | The Friday brief: headline, summary, biggest change, ranked pain points, volume, sources, topic movement, underserved problems, what to investigate, data quality |
-| Weekly reports | Every stored brief and version; compare any two weeks |
-| Pain points | Full ranking with filters, sorting, 8-week sparklines, evidence drawer |
-| Opportunities | Recurring, mostly-unresolved problems with workarounds, evidence, confidence and limitations; single complaints listed only as early leads |
-| Discussions | Original posts beside the AI reading; search, filter by week, source, topic and classification |
-| Sources | Volume and pain per source, recent reliability, enable/pause |
-| Topics & keywords | What PulsePoint listens for, with matches per keyword this week |
-| System health | Last success, analysis queue, coverage, run log with errors |
-| Settings | Which settings are configured (never their values), schedule, trend rules |
+| **Friday brief** | Headline, summary, biggest change, ranked pain points, volume, sources, topic movement, underserved problems, what to investigate, data quality; team votes |
+| **Weekly reports** | Every stored brief and version; compare two weeks; team usefulness rate |
+| **Pain points** | Full ranking with filters, sorting, 8-week sparklines, evidence drawer |
+| **Topics & keywords** | What PulsePoint listens for, with matches per keyword |
+| More → Opportunities | Recurring, mostly-unresolved problems with workarounds and evidence |
+| More → Discussions | Original posts beside the AI reading; filter by period, source, topic, classification |
+| More → Sources | Volume and pain per source, reliability, enable/pause; other platforms' status |
+| More → System health | Last success, analysis queue, coverage, run log with errors |
+| More → Settings | Which settings are configured (never their values), email, alerts, schedule, trend rules |
 
-The top bar's week selector and "vs previous week" switch are stored in the URL (`?report=…&compare=off`) and carried across sections.
+The top bar's period (`?view=month&m=…`, `?view=range&from=…&to=…`, or `?report=…` for a week) and the "vs previous" switch live in the URL, so any view can be shared.
 
-## Setup
+## Run it locally
 
-### 1. Neon
-1. Create a project at neon.tech (or in Vercel → Storage → Neon, which also adds `DATABASE_URL` to your project automatically).
-2. Copy the **pooled** connection string (host contains `-pooler`, ends with `?sslmode=require`). Keep it server-side; never prefix it with `NEXT_PUBLIC_`.
-3. Create the tables and starter keywords:
-   ```bash
-   DATABASE_URL='postgresql://…' npm run db:migrate
-   ```
-   The runner records applied files in `schema_migrations`, so running it again is safe. (Alternatively paste `db/migrations/0001_schema.sql` then `0002_seed.sql` into Neon's SQL Editor.)
-
-### 2. Gemini
-Create an API key at Google AI Studio. Default model: `gemini-3.8-flash` (`gemini-2.5-flash` is no longer available to new keys; override with `GEMINI_MODEL`).
-
-### 3. Local run
 ```bash
-cp .env.example .env.local   # fill in values
+cp .env.example .env.local   # fill in values (see below)
 npm install
-npm run dev                  # http://localhost:3000 (no login)
+npm run db:migrate           # creates tables + starter keywords; safe to re-run
+npm run dev                  # http://localhost:3000
 ```
-Click **Collect & generate brief**. The first run backfills 15 days; if analysis is still queued when the 4-minute budget ends, click it again (or let the daily cron finish it).
+Click **Generate report**. The first run backfills 15 days; if discussions are still queued when the 4-minute budget ends, run it again (or let the daily cron finish).
 
-### 4. Environment variables
-| Variable | Required | Notes |
+## Environment variables (names only — values live in `.env.local` and Vercel)
+
+| Variable | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | yes | Neon pooled connection string; server-only |
-| `GEMINI_API_KEY` | yes | |
+| `DATABASE_URL` | yes | Neon pooled connection string (server-only) |
+| `GEMINI_API_KEY` | yes | Google AI Studio key |
 | `GEMINI_MODEL` | no | default `gemini-3.8-flash` |
-| `GEMINI_MIN_INTERVAL_MS` | no | default 4000 (free-tier friendly) |
-| `CRON_SECRET` | yes | Vercel Cron sends it as a Bearer token automatically |
-| `STACKEXCHANGE_KEY` | no | raises quota from 300 to 10,000 req/day |
-| `GITHUB_TOKEN` | no | also enable `github` on the Topics page |
+| `GEMINI_MIN_INTERVAL_MS` | no | spacing between Gemini calls (default 4000) |
+| `CRON_SECRET` | yes | protects `/api/cron/*`; Vercel Cron sends it as a Bearer token |
+| `GITHUB_TOKEN` | for GitHub | fine-grained token, public repositories read-only |
+| `STACKEXCHANGE_KEY` | no | raises Stack Exchange quota |
+| `RESEND_API_KEY` | for email | Resend key for the brief and alerts |
+| `BRIEF_RECIPIENTS` | for email | comma-separated recipients of the Friday brief |
+| `BRIEF_FROM` | no | sender, default `PulsePoint <onboarding@resend.dev>` |
+| `ALERT_EMAIL` | for alerts | named maintainer for failure alerts |
+| `APP_URL` | no | links in emails; on Vercel defaults to the production domain |
+| `TEAM_MEMBERS` | no | names offered for votes, default `Sumit,Neha,Kabir` |
 | `REPORT_TZ_OFFSET_MINUTES` | no | default 330 (IST) |
 | `PIPELINE_BUDGET_MS` | no | default 240000 (< 300 s function limit) |
-| `RESEND_API_KEY` | for email | Resend API key; emails the Friday brief |
-| `BRIEF_RECIPIENTS` | for email | comma-separated addresses |
-| `BRIEF_FROM` | no | default `PulsePoint <onboarding@resend.dev>` |
-| `APP_URL` | no | link in the email; on Vercel defaults to the production domain |
 | `SLACK_WEBHOOK_URL` | no | optional Friday Slack message |
-| `TEAM_MEMBERS` | no | names for team votes; default `Sumit,Neha,Kabir` |
-| `ALERT_EMAIL` | for alerts | maintainer emailed when a scheduled run fails or a source fails 3 runs in a row (once per problem per day) |
 
-### 5. Deploy (GitHub + Vercel)
-```bash
-git remote add origin https://github.com/<you>/developer-community-pulse.git
-git push -u origin main
-```
-Vercel → Add New Project → import the repo → add the environment variables → Deploy. `vercel.json` registers two crons:
-- `0 1 * * *` → `/api/cron/daily` (collect + analyze, 06:30 IST)
-- `30 0 * * 5` → `/api/cron/weekly` (final pass + brief + email, Friday 06:00 IST; the Friday daily run re-sends the email only if it failed)
+## Deploy
 
-Verify: open the URL, log in, run once manually, then check **Collection status**. In Vercel → Settings → Cron Jobs you can trigger each cron on demand.
+Push to `main` on GitHub → Vercel builds and deploys. `vercel.json` registers two crons:
+- `0 1 * * *` → `/api/cron/daily` — collect + analyse (06:30 IST); on Fridays also re-sends the brief email if the weekly send failed.
+- `30 0 * * 5` → `/api/cron/weekly` — final pass, brief, email (Friday 06:00 IST).
+
+After changing environment variables in Vercel, **Redeploy**. Run migrations with `npm run db:migrate` (never the integration tests) against production.
 
 ## Testing
+
 ```bash
-npm test          # 33 unit tests: trend math, zero baselines, windows, dedupe, mention counting,
-                  # quote verification, malformed AI output, uncited-claim removal, metrics aggregation
-                  # (+5 integration tests when TEST_DATABASE_URL is set)
-TEST_DATABASE_URL=postgres://… npm run test:integration
-                  # Runs the real pipeline SQL end to end against Postgres with community APIs and Gemini
-                  # faked: collection, cross-post dedupe, retry after malformed AI output, quote rejection,
-                  # exact weekly counts/trends, uncited-claim removal, source-failure reporting, idempotent
-                  # Friday report, concurrency guard, keyword management, history endpoint.
-                  # WARNING: drops and recreates the public schema — use a throwaway database or a Neon branch.
-SEED_VISUAL_DB=postgres://… npx vitest run tests/fixtures/visual-seed.test.ts
-                  # LOCAL DESIGN QA ONLY: fills a throwaway database with 8 simulated weeks by running the
-                  # real pipeline with faked APIs. Never point it at production.
+npm test             # 86 unit tests: trend math, zero baselines, IST windows and calendar periods,
+                     # dedupe, quote verification, malformed AI output, metrics, email builder,
+                     # "never emailed twice", team votes, alert rules and once-per-day (PGlite)
 npm run typecheck
 npm run lint
 npm run build
+TEST_DATABASE_URL=postgres://… npm run test:integration
+                     # Full pipeline SQL on Postgres with APIs faked.
+                     # WARNING: drops the public schema — throwaway database only, never production.
 ```
 
 ## How the numbers work
-- **Unit:** unique discussion (HN thread / SO question / GitHub issue). Keyword mentions are stored and shown separately.
-- **Windows:** two consecutive 7-day periods ending at local midnight of the report day (half-open intervals).
-- **Counted:** relevant discussions classified `workflow_pain` or `unmet_need`, excluding duplicates. `isolated_bug` is reported separately.
-- **Absolute change** = current − previous. **% change** = Δ / previous × 100 when previous > 0; otherwise **New**.
-- **Trend:** rising/declining need |Δ| ≥ 2 and |%Δ| ≥ 25; else stable. `gone` = seen last week only.
-- **Sufficiency:** insufficient if < 3 discussions across both weeks; limited if < 8 or a single source.
-- **Underserved:** ≥ 2 discussions this week and ≥ 50% unresolved/partially resolved.
-- **Bucketing date:** the first matching activity of a thread. Late-arriving data is recomputed on each report; revisions to the previous week are disclosed while stored snapshots stay unchanged.
+- **Unit:** unique discussion (HN thread / SO question / GitHub issue). Keyword mentions are counted separately.
+- **Windows:** weekly = two consecutive 7-day periods ending at local midnight (IST); Month/Range = the selected period vs the previous period of equal length.
+- **Counted:** relevant discussions classified `workflow_pain` or `unmet_need`, excluding duplicates; `isolated_bug` reported separately.
+- **Change:** Δ = current − previous; %Δ = Δ / previous × 100 when previous > 0, otherwise **New**.
+- **Trend:** rising/easing need |Δ| ≥ 2 and |%Δ| ≥ 25, else stable.
+- **Sufficiency:** insufficient if < 3 discussions across both periods; limited if < 8 or a single source.
+- **Underserved:** ≥ 2 discussions and ≥ 50% unresolved/partially resolved.
 
 ## Security
-- The browser never connects to the database. `DATABASE_URL` is read only in server modules (`server-only` imports); all SQL is parameterized by the driver.
-- Each analysis batch and each report snapshot is written in a single transaction.
-- A source that fails 3 requests in a row is skipped for the rest of the run, so an outage can't consume the time budget.
-- Cron routes require `CRON_SECRET`. The dashboard has no sign-in (testing build): anyone with the link can view it and make changes.
-- Community text is stripped of HTML, rendered as plain text, and fenced in prompts with an instruction to ignore embedded instructions.
-- External links use `rel="noopener noreferrer nofollow"`.
+- The browser never connects to the database; `DATABASE_URL`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN` are server-only. All SQL is parameterised.
+- Cron routes require `CRON_SECRET` (verified live: 401 without it).
+- No dashboard sign-in in this testing build: anyone with the link can view and make changes (generate a report, edit keywords, vote, send the test email to the configured recipients).
+- Community text is stripped of HTML, rendered as plain text and fenced in prompts. Alert emails redact anything that looks like a key.
 
 ## Known limitations
-- Reddit is not integrated (OAuth registration and commercial-use terms). Discord/Slack communities are out of scope.
-- A long-running thread is counted in the week it first matched; new comments on an already-analyzed thread are not re-analyzed.
-- Weekly counts for a niche keyword set may be small; read sufficiency labels before acting on a trend.
-- Neon's free tier suspends idle compute; the first query after a pause takes a moment longer (the daily cron keeps it warm on weekdays).
-- Vercel Hobby is for non-commercial use and limits each cron to once per day; a company tool should use Pro.
-- No sign-in: fine for a testing build; add auth before real use.
+- **No sign-in** (testing build) — votes use a self-chosen name; add auth before real use.
+- **Email on Resend's free plan** reaches only the account owner's address until a domain is verified, so Neha, Kabir and a separate maintainer can't receive the brief or alerts yet.
+- **Volume is modest**: ~10 pain discussions/week from HN + SO; GitHub adds more but is capped at 20 issues per keyword per run and is noisy (about half off-topic). Trends are labelled with data sufficiency.
+- Some keywords are noisy (`false positives`, `build times`, `developer productivity`) — suggested replacements are in [LIVE_VERIFICATION.md](docs/LIVE_VERIFICATION.md); Sumit decides.
+- Reddit is pending API approval; Discord and X are not connected.
+- Month/Range views are numbers only — the AI-written brief exists for weekly snapshots.
+- With GitHub enabled, a run can leave discussions queued for analysis; the next run finishes them.
+- Monitoring began 27 Sept 2026; earlier periods show "Not monitored yet".
+- Vercel Hobby crons may fire any time within their hour and the plan is for non-commercial use; a company tool should use Pro.

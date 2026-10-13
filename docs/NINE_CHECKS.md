@@ -5,19 +5,19 @@ Framework: AI Basics, page 32. **Kill switches** (1–3): any NO → don't build
 ## Overall recommendation
 
 **Build — at reduced scope, with two named human boundaries.**
-No kill switch fails. Check 4 is only partially proven, so v1 is deliberately smaller (two sources, directional trends with sufficiency labels, recommendations framed as "investigate", no automated actions). Check 9 fails as stated, so a human is placed exactly there: a named engineering owner for pipeline health alongside Sumit as owner of taxonomy and decisions.
+No kill switch fails. Check 4 is only partially proven, so v1 is deliberately smaller (two sources, directional trends with sufficiency labels, recommendations framed as "investigate", no automated actions). Check 9 failed as first stated, so a human was placed exactly there: a named maintainer now receives failure alerts by email (final build), alongside Sumit as owner of taxonomy and decisions.
 
 | # | Check | Verdict | Consequence |
 |---|---|---|---|
 | 1 | Problem real? | YES | Proceed |
 | 2 | Workflow repeated? | YES | Proceed |
-| 3 | Input available? | YES (for HN + Stack Overflow) | Proceed with those sources; Reddit deferred |
+| 3 | Input available? | YES (HN, Stack Overflow, GitHub Issues) | Reddit pending approval; Discord and X not connected |
 | 4 | Output valuable? | PARTIAL → treated as NO | Build smaller |
-| 5 | Impact measurable? | YES, baseline needed | Proceed; record baseline week 1 |
+| 5 | Impact measurable? | YES — measured in-app | Team votes 👍/👎 on every AI item; usefulness rate on Weekly reports |
 | 6 | Failure risk OK? | YES with human review | Human reviews evidence before acting |
 | 7 | Judgment protected? | YES by design | AI surfaces, Sumit decides |
 | 8 | ROI worth it? | YES | Proceed (note hosting plan cost) |
-| 9 | Owner clear? | NO for operations | Human placed here: named maintainer |
+| 9 | Owner clear? | YES — named maintainer | Failure alerts emailed to ALERT_EMAIL; Sumit owns keywords and decisions |
 
 ---
 
@@ -42,8 +42,8 @@ No kill switch fails. Check 4 is only partially proven, so v1 is deliberately sm
 ### 3. Input available? — Kill switch
 - **Purpose:** Can the system legitimately get the data it needs?
 - **Evidence:** Hacker News (Algolia API, no key) and Stack Exchange API (no key; 300 req/day, 10k with a free key) are official, free, and support date filters — enabling a 15-day backfill on day one. GitHub Issues search works with a token but is dominated by repo-specific bug reports. Reddit's API requires OAuth registration and its terms restrict commercial use, so it is not used in v1.
-- **Verdict:** **YES — for HN and Stack Overflow.**
-- **Reasoning:** Two reliable official sources are enough to pass the kill switch for a reduced v1.
+- **Verdict:** **YES — HN and Stack Overflow from v1; GitHub Issues enabled in the final build** (read-only token; 65 new threads in its first 3-day collection, 17 describing workflow pain). Reddit is pending API approval; Discord and X are not connected.
+- **Reasoning:** Reliable official sources are enough to pass the kill switch for a reduced v1.
 - **Risks:** Sumit's actual "two or three communities" are not named; if they are Reddit, Discord or private Slacks, coverage is materially incomplete. Stack Overflow skews to how-to questions (debugging noise).
 - **Safeguards:** Classifier separates how-to questions and isolated bugs from workflow pain; per-source counts and filters expose source bias; source failures are surfaced in data quality.
 - **Evidence still required:** Confirm with Sumit which communities he reads; measure weekly volume of *relevant pain* discussions after week 1 (if consistently < ~20, trend claims stay weak).
@@ -53,17 +53,18 @@ No kill switch fails. Check 4 is only partially proven, so v1 is deliberately sm
 - **Evidence:** Frequency + evidence links clearly replace the manual reading. But week-over-week trends on small counts are statistically fragile (a move from 2 to 4 is "+100%").
 - **Verdict:** **PARTIAL → treated as NO under the rule → build smaller.**
 - **Reasoning:** The evidence digest is clearly valuable; precise trend claims are not yet proven at expected volumes.
-- **Scope reductions made:** (a) trends require both ≥2 discussions and ≥25% change, else "stable"; (b) every pain point carries a sufficiency label (insufficient < 3 total, limited < 8 or single source); (c) zero baselines show "New", never a percentage; (d) AI recommendations are "areas to investigate", not priorities; (e) no automated ticket creation, no email blasts to the team.
+- **Scope reductions made:** (a) trends require both ≥2 discussions and ≥25% change, else "stable"; (b) every pain point carries a sufficiency label (insufficient < 3 total, limited < 8 or single source); (c) zero baselines show "New", never a percentage; (d) AI recommendations are "areas to investigate", not priorities; (e) no automated ticket creation; the brief is emailed to the team as a reading, never as the plan.
 - **Risks:** Sumit over-reads a "rising" label on thin data.
 - **Evidence still required:** Sumit rates each brief's findings useful / not useful for 4 weeks.
 
 ### 5. Impact measurable? — Sizing
 - **Purpose:** Can we tell whether it worked?
 - **Evidence:** Baseline is explicit (90 min/week). Measurable outcomes: review time per brief, number of findings that enter sprint discussion, demo objections that match a tracked pain point.
-- **Verdict:** **YES (baseline to record).**
-- **Risks:** No in-app feedback capture in v1, so measurement relies on Sumit noting it.
-- **Safeguards:** Every report is stored as an immutable snapshot, so later evaluation can compare what was said vs. what happened.
-- **Evidence still required:** Week-1 baseline: time spent on the brief vs. the old manual process.
+- **Verdict:** **YES — measured in-app (final build).**
+- **How it is measured now:** Sumit, Neha and Kabir each vote 👍 Useful / 👎 Not useful once on every AI finding, underserved explanation and recommendation (`finding_feedback`, one vote per person per item). *Weekly reports* shows the usefulness rate across all voters and per brief, so value is tracked week by week instead of relying on Sumit's notes.
+- **Risks:** No sign-in in the testing build, so a vote's name is self-chosen; a handful of votes per week is a small sample.
+- **Safeguards:** Every report is stored as an immutable snapshot, so votes always refer to exactly what was shown; later evaluation can compare what was said vs. what happened.
+- **Evidence still required:** Week-1 baseline (time on the brief vs. the old 90-minute manual process) and 4 weeks of votes.
 
 ### 6. Failure risk OK? — Boundary
 - **Purpose:** What is the worst plausible failure, and is it acceptable?
@@ -89,5 +90,7 @@ No kill switch fails. Check 4 is only partially proven, so v1 is deliberately sm
 ### 9. Owner clear? — Boundary
 - **Purpose:** Is there a clear owner for inputs, operation and decisions?
 - **Evidence:** Sumit clearly owns the keyword taxonomy and the decisions. Nobody is named to own pipeline health (a source API change, an expired key, a quota hit) in a 15-person startup where Sumit is not an engineer by role.
-- **Verdict:** **NO (for operations) → put a human exactly here.**
-- **Human here:** Name one engineer as maintainer who receives failed-run alerts and reviews the Collection status page weekly. Sumit owns topics/keywords and all prioritisation.
+- **Verdict (as first assessed):** **NO (for operations) → put a human exactly here.**
+- **Human here (final build):** A **named maintainer** is set in `ALERT_EMAIL` and is emailed automatically when a scheduled run fails or a source fails 3 runs in a row — what failed, when, the error (secrets redacted) and a link to System health — at most once per problem per day. The maintainer reviews System health; Sumit owns topics/keywords and all prioritisation. **Verdict now: YES.**
+- **Evidence:** A forced failure (invalid source URL) produced exactly one alert email; repeats the same day were suppressed (see `docs/LIVE_VERIFICATION.md`).
+- **Remaining gap:** On Resend's free plan alerts reach only the account owner until a domain is verified.

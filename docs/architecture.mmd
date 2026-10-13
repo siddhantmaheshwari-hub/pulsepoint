@@ -1,70 +1,90 @@
 flowchart LR
-  %% PulsePoint — end-to-end architecture (editable Mermaid)
-  subgraph PM["Sumit / Product Manager"]
-    PM1(["Opens Friday brief"])
-    PM2(["Edits topics & keywords"])
-    PM3(["Clicks Collect & generate brief"])
-    PM4(["Reviews evidence, decides priorities"])
+  %% PulsePoint — final architecture (editable Mermaid). Lanes match docs/COMPONENTS_MAP.md.
+  subgraph SUMIT["Sumit — Product Manager"]
+    U1(["Reads the Friday brief<br/>(email + web)"])
+    U2(["Picks Week | Month | Range"])
+    U3(["Edits topics & keywords"])
+    U4(["Votes on AI findings"])
+    U5(["Decides sprint priorities<br/>(human decision)"])
   end
-  subgraph VER["Vercel — Scheduler & Hosting"]
-    C1[["Cron daily 01:00 UTC<br/>/api/cron/daily"]]
-    C2[["Cron Fri 02:30 UTC = 08:00 IST<br/>/api/cron/weekly"]]
-    HOST["Hosts Next.js app & serverless functions"]
+  subgraph TEAM["Team — Neha · Kabir"]
+    T1(["Vote useful / not useful<br/>(one vote per person)"])
+    T2(["Named maintainer<br/>receives failure alerts"])
   end
-  subgraph FE["Frontend — PulsePoint (Next.js / React / Tailwind)"]
-    F1["Dashboard: Friday brief, lead signal, pain ranking, evidence drawer"]
-    F2["Topics & keywords, Sources"]
-    F3["Weekly reports, Pain points, Opportunities, Discussions, System health"]
+  subgraph CRON["Vercel Cron"]
+    C1[["Daily 06:30 IST (01:00 UTC)<br/>/api/cron/daily"]]
+    C2[["Fri 06:00 IST (00:30 UTC)<br/>/api/cron/weekly"]]
   end
-  subgraph BE["Backend — Route handlers & pipeline"]
-    B0{"Auth: CRON_SECRET / Basic auth<br/>concurrency + idempotency guard"}
-    B1["Collect: per keyword × source,<br/>paginate, retry, backoff"]
-    B2["Normalize: strip HTML, phrase match,<br/>dedupe source+id & fingerprint"]
-    B3["Analyze: batch 10 → Gemini,<br/>zod validate, verify quote verbatim"]
-    B4["Deterministic metrics:<br/>unique discussions, Δ, %Δ, trend, sufficiency"]
-    B5["Synthesize: Gemini over computed metrics,<br/>drop uncited claims"]
-    B6["Store report snapshot + topic_metrics"]
+  subgraph APP["Pulse app — Next.js on Vercel"]
+    direction TB
+    A0{"CRON_SECRET check<br/>+ one run at a time"}
+    A1["Collect per keyword × source<br/>(retry, backoff, circuit breaker)"]
+    A2["Normalize: strip HTML,<br/>exact phrase, dedupe"]
+    A3["Analyze in batches → Gemini<br/>(zod-validated, quotes verified)"]
+    A4["Metrics in code: counts, Δ, %Δ,<br/>trend, sufficiency, underserved"]
+    A5["Synthesis → Gemini<br/>(uncited claims dropped)"]
+    A6["Store immutable weekly snapshot"]
+    A7["Email the brief once per week"]
+    A8["Alert check: scheduled run failed<br/>or source failed 3 runs in a row"]
+    W1["Friday brief (Week view, AI reading)"]
+    W2["Month / Range view: numbers only,<br/>computed from stored data, no AI call"]
+    W3["Team votes 👍 / 👎 with names"]
+    W4["Topics & keywords, Sources,<br/>System health, Settings"]
   end
-  subgraph EXT["External developer communities (official APIs)"]
-    E1[("Hacker News — Algolia API")]
-    E2[("Stack Overflow — Stack Exchange API")]
-    E3[("GitHub Issues search — optional")]
+  subgraph PLAT["Platforms (official APIs)"]
+    P1[("Hacker News — Algolia")]
+    P2[("Stack Overflow — Stack Exchange")]
+    P3[("GitHub Issues — search")]
+    P4[("Reddit — pending approval")]
+    P5[("Discord · X — not connected")]
   end
-  subgraph GEM["Gemini Flash API"]
-    G1["Structured extraction JSON"]
-    G2["Evidence-cited synthesis JSON"]
+  subgraph GEM["Gemini Flash — Google AI Studio"]
+    G1["Classify discussions → JSON"]
+    G2["Evidence-cited synthesis → JSON"]
   end
-  subgraph SB["Neon Postgres (server-only connection via DATABASE_URL)"]
-    S1[("topics, keywords, sources")]
-    S2[("discussions, discussion_matches")]
-    S3[("pain_points, discussion_analyses")]
-    S4[("reports, topic_metrics, collection_runs")]
+  subgraph NEON["Neon Postgres (server-side only)"]
+    N1[("topics · keywords · sources")]
+    N2[("discussions · matches · analyses · pain_points")]
+    N3[("reports · topic_metrics · collection_runs")]
+    N4[("finding_feedback (votes) · brief_emails · alerts")]
   end
-  subgraph GH["GitHub — Version control"]
-    R1["Repository main branch"]
+  subgraph RES["Resend"]
+    R1["Friday brief email"]
+    R2["Failure alert email"]
+  end
+  subgraph GH["GitHub"]
+    V1["main branch → Vercel deploy"]
   end
 
-  R1 -- "git push → build & deploy" --> HOST
-  C1 -- "HTTPS GET + Bearer secret" --> B0
-  C2 -- "HTTPS GET + Bearer secret" --> B0
-  PM3 --> F1 -- "POST /api/runs (Basic auth)" --> B0
-  PM2 --> F2 -- "server action: insert/update" --> S1
-  B0 -- "read active config" --> S1
-  B0 --> B1
-  B1 -- "search requests" --> E1 & E2 & E3
-  E1 & E2 & E3 -- "JSON results" --> B2
-  B2 -- "upsert discussions + mentions" --> S2
-  S2 -- "pending discussions" --> B3
-  B3 -- "prompt (untrusted text fenced)" --> G1
-  G1 -- "JSON" --> B3
-  B3 -- "insert analyses / pain points" --> S3
-  S3 -- "analyses in 2 windows" --> B4
-  B4 --> B5
-  B5 -- "metrics + evidence ids" --> G2
-  G2 -- "JSON" --> B5
-  B5 --> B6 -- "insert" --> S4
-  S4 -- "select latest report" --> F1
-  S4 --> F3
-  F1 --> PM1 --> PM4
-  PM4 -. "adjust keywords" .-> PM2
-  B6 -. "optional Slack webhook" .-> PM1
+  C1 -- "GET + Bearer secret" --> A0
+  C2 -- "GET + Bearer secret" --> A0
+  A0 -- "read active config" --> N1
+  A0 --> A1
+  A1 -- "search" --> P1 & P2 & P3
+  P1 & P2 & P3 -- "JSON" --> A2
+  P4 -. "not collected" .-> A1
+  P5 -. "not collected" .-> A1
+  A2 -- "upsert" --> N2
+  N2 -- "pending" --> A3
+  A3 <-- "untrusted text fenced" --> G1
+  A3 -- "analyses" --> N2
+  N2 -- "two windows" --> A4
+  A4 --> A5
+  A5 <-- "metrics + evidence ids" --> G2
+  A5 --> A6 -- "insert" --> N3
+  A6 -- "weekly run only" --> A7
+  A7 -- "claim week (never twice)" --> N4
+  A7 --> R1 --> U1
+  A0 -- "after every scheduled run" --> A8
+  A8 -- "claim (problem, day)" --> N4
+  A8 --> R2 --> T2
+  N3 -- "latest snapshot" --> W1 --> U1
+  U2 --> W2
+  N2 -- "on-the-fly metrics" --> W2
+  U4 --> W3
+  T1 --> W3
+  W3 -- "upsert vote" --> N4
+  U3 --> W4 -- "server actions" --> N1
+  U1 --> U5
+  U5 -. "adjust keywords" .-> U3
+  V1 -. "build & deploy" .-> APP

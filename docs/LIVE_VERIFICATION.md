@@ -64,3 +64,56 @@ Checked at 1440 px and 390 px on all nine pages. No horizontal overflow at 390 p
 4. **Gemini reliability:** intermittent 503s and silent stalls make run times vary (40–245 s). Bounded now; a run that runs out of budget leaves the rest queued for the next run.
 5. **Not yet verified:** Vercel deployment and crons (Phase 2), and the Stack Exchange `backoff` field (never returned during testing).
 6. Accidental incident during testing: an integration test run connected to another local project's PGlite database on port 54329 (the throwaway server failed to bind) and dropped its schema. Production Neon was untouched. The test database now uses port 55433 and is started with `npm run test:db`; always confirm the listener is the process you started.
+
+---
+
+# Production (final build)
+
+**Date:** 13 Oct 2026 · **URL:** https://pulsepoint-two.vercel.app · **Commit:** `main` on GitHub (`siddhantmaheshwari-hub/pulsepoint`) · **Environment:** Vercel (Hobby), Neon Postgres, Gemini Flash via Google AI Studio, Resend.
+Everything below was run against production unless marked local; numbers are copied from responses, logs and the database.
+
+## Checklist
+
+| Check | Result |
+|---|---|
+| `npm test` · typecheck · lint · build | ✅ 86 passed (8 DB-dropping tests skipped by design) · clean · clean · clean |
+| Secret scan before every push | ✅ no keys in the repo or its history (a test fixture briefly contained a fragment of a revoked key; caught and replaced before the push) |
+| `npm run db:migrate` against Neon | ✅ 0001–0007 applied; re-run skips all |
+| Private window: pages open without a password | ✅ 11 URLs return 200 with no `WWW-Authenticate` header (brief, weekly reports, pain points, topics, opportunities, discussions, sources, health, settings, month view, range view) |
+| `/api/cron/daily`, `/api/cron/weekly` without / with a wrong secret | ✅ 401 `{"error":"unauthorized"}` |
+| Generate report on production (`POST /api/runs`, same as the button) | ✅ HTTP 200 in 201 s (< 300 s limit): collect 13 s, analyse 166 s, report 22 s; 0 source failures (GitHub 13/13, HN 13/13, SO 13/13 requests); 82 new discussions; AI synthesis present; 0 errors. Status `partial` only because 21 discussions stayed queued for the next run |
+| Settings → Send test email (production) | ✅ delivered (confirmed by the owner in Step 2: brief readable, link opened the brief) · re-check after Step 8: **to confirm** |
+| Vercel → Cron Jobs → Run weekly | **To confirm by the owner** (expected: `[email] sent` once, a second Run logs `[email] already_sent`) |
+| Email "never twice" rule | ✅ unit-tested on the real migration (PGlite) |
+| Failure alert, forced locally | ✅ invalid source URL → 3 alert attempts the same day → **1 email sent**, attempts 2–3 `already_alerted`, 1 `alerts` row (test row removed afterwards) |
+| axe-core 4.10.2, WCAG 2.1 A/AA | ✅ 0 violations: Friday brief (1440 px and 390 px), October month view, Settings. One violation found and fixed (inline link relied on colour) |
+| Layout | ✅ No horizontal scroll at 390 px on any page; 4 main nav items + "More" |
+
+## Calendar check (production data)
+
+| Period | Pain discussions (period view) | Discussions page, same dates |
+|---|---:|---:|
+| September 2026 | 3 | 3 |
+| 1–10 Oct 2026 | 14 (previous 10 days: 3) | 14 (previous: 3) |
+
+## GitHub Issues (enabled 13 Oct)
+
+First collection (3-day look-back): 13 requests, 0 failures; **65 new GitHub threads**, all analysed — 17 workflow pain / unmet need, 8 isolated bugs (counted separately), 7 opinion, 32 not relevant. Every keyword hit the 20-issue cap. Precise keywords on GitHub: `merge queue` 10/10 relevant, `stacked PRs` 6/8, `flaky tests` 4/5.
+
+## Keyword suggestions for Sumit (not applied)
+
+| Keyword | Matched HN+SO / GitHub | Relevant | Suggestion |
+|---|---|---|---|
+| false positives | 65 / 13 | 14 / 5 | Replace with `false positive rate`, `review bot false positives` |
+| developer productivity | 6 / 11 | 2 / 0 | Drop (hiring threads, unrelated issues) |
+| build times | 5 / 2 | 0 / 2 | Replace with `slow CI builds` |
+| static analysis | 25 / 3 | 11 / 0 | Keep, watch |
+| merge queue, stacked PRs | 2 / 10, 1 / 8 | 1 / 10, 0 / 6 | Keep — GitHub makes them precise |
+| code review, PR review, AI code review, CI pipeline, flaky tests | — | 71–90% | Keep |
+
+## Remaining limitations
+
+- No sign-in (testing build); votes use a self-chosen name.
+- Resend free plan delivers only to the account owner until a domain is verified.
+- GitHub volume roughly doubles analysis work; runs can leave items queued for the next run.
+- Reddit pending approval; Discord and X not connected.

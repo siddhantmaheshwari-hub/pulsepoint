@@ -2,12 +2,12 @@
 
 Developer-community intelligence for Sumit, sole PM at a 15-person code review automation startup.
 Produces a Friday-morning brief: top developer pain points, week-over-week trends, underserved problems, with evidence links.
-Full build brief and phases: `PULSEPOINT_BUILD_PROMPT.md`. Design system (source of truth): `docs/DESIGN.md`. Inspiration images: `design-references/`. Current UI: `docs/screenshots/`.
+Final build brief: `PULSEPOINT_FINAL_BUILD_PROMPT.md` (earlier: `PULSEPOINT_BUILD_PROMPT.md`). Design system (source of truth): `docs/DESIGN.md`. Inspiration images: `design-references/`. Current UI: `docs/screenshots/`.
 
-Status: built, redesigned and tested with mocked APIs. NOT yet verified against live Hacker News, Stack Exchange, Gemini, Neon or Vercel — that is the first job.
+Status: **Final build shipped** (13 Oct 2026). Live at https://pulsepoint-two.vercel.app, verified in production (see `docs/LIVE_VERIFICATION.md`). Repo: https://github.com/siddhantmaheshwari-hub/pulsepoint.
 
 ## Stack
-Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via postgres.js (`src/lib/db.ts`) · Gemini Flash (REST, `src/lib/gemini.ts`) · Vercel + Cron (`vercel.json`) · GitHub.
+Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via postgres.js (`src/lib/db.ts`) · Gemini Flash (REST, `src/lib/gemini.ts`) · Resend (brief + alert email) · Vercel + Cron (`vercel.json`) · GitHub.
 
 ## Commands
 - `npm run dev` · `npm test` · `npm run typecheck` · `npm run lint` · `npm run build`
@@ -26,9 +26,12 @@ Next.js 15 App Router · React 19 · TypeScript · Tailwind · Neon Postgres via
 
 ## Map
 - `src/lib/pipeline/` collect → analyze → report → run (orchestrator, 240 s budget, lock, idempotent Friday report)
-- `src/lib/sources/` Hacker News, Stack Overflow, GitHub adapters
-- `src/app/` nine sections (/, reports, pain-points, opportunities, discussions, sources, topics, health, settings) and API routes (cron, runs, pain-points)
+- `src/lib/sources/` Hacker News, Stack Overflow, GitHub adapters (all three enabled; Reddit pending, Discord/X not connected)
+- `src/lib/email*.ts` Friday brief email (never twice, `brief_emails`); `src/lib/alert*.ts` failure alerts (once per problem per day, `alerts`)
+- `src/lib/periods.ts`, `period-data.ts`, `components/PeriodView.tsx` Week | Month | Range (month/range: numbers only, no AI)
+- `src/lib/votes.ts`, `voter.ts` team votes (one per person per item, `TEAM_MEMBERS`)
+- `src/app/` nine sections (sidebar: Friday brief, Weekly reports, Pain points, Topics & keywords; More: opportunities, discussions, sources, health, settings) and API routes (cron, runs, pain-points)
 - `src/components/` shell (frame, sidebar, top bar), pain (table, drawer, lead signal), viz (charts), ui (tokens in use)
 - Design system: `docs/DESIGN.md` — follow it for any UI change
 - No dashboard sign-in (testing build); cron routes use `CRON_SECRET`
-- `docs/` Nine Checks, Components Map, research, Mermaid architecture
+- `docs/` Nine Checks, Components Map (+ SVG/PNG), live verification, research, Mermaid architecture, real-data screenshots

@@ -1,4 +1,16 @@
-Screenshots of every main screen, captured in a headless browser from the real app.
-Data is an 8-week SAMPLE produced by running the real pipeline with faked community APIs and Gemini
-(tests/fixtures/visual-seed.test.ts) — not live data. Replace these with real-data captures after live verification.
-7-brief-when-ai-unavailable shows the honest fallback when Gemini can't be reached.
+Screenshots of the live app (https://pulsepoint-two.vercel.app) with **real data**, captured 13 Oct 2026
+(desktop at 1440 px with headless Chrome; mobile at a true 390 px viewport with Puppeteer).
+
+| File | Screen |
+|---|---|
+| 1-friday-brief.png | Friday brief (Week view, AI reading, votes, lead signal, ranking, volume, underserved, investigate) |
+| 2-month-view.png | Month view, October 2026 — numbers only, computed from stored data |
+| 3-pain-points.png | Pain points ranking with filters and 8-week sparklines |
+| 4-opportunities.png | Opportunities (underserved problems and early leads) |
+| 5-discussions.png | Discussions filtered to pain points |
+| 6-sources.png | Sources: HN, Stack Overflow, GitHub Issues; Reddit pending; Discord and X not connected |
+| 7-system-health.png | System health: run log, queue, coverage |
+| 8-settings.png | Settings: configuration, email, failure alerts |
+| 9-mobile-brief.png | Friday brief on a 390 px phone |
+
+The earlier sample-data screenshots (from the visual seed fixture) were removed so every image here is real.
