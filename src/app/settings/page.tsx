@@ -1,4 +1,6 @@
 import { PageHeader } from '@/components/ui/bits';
+import { alertsConfigured, lastAlert } from '@/lib/alert-send';
+import { SOURCE_FAIL_RUNS } from '@/lib/alerts';
 import { maskEmail, parseRecipients } from '@/lib/email';
 import { emailConfigured, lastBriefEmail } from '@/lib/email-send';
 import { env } from '@/lib/env';
@@ -15,7 +17,9 @@ const set = (k: string) => Boolean(process.env[k]);
 export default async function SettingsPage() {
   const recipients = parseRecipients(env.briefRecipients);
   const emailOn = emailConfigured();
-  const last = await lastBriefEmail();
+  const [last, lastAlertRow] = await Promise.all([lastBriefEmail(), lastAlert()]);
+  const alertsOn = alertsConfigured();
+  const alertTo = parseRecipients(env.alertEmail);
   const tz = Number(process.env.REPORT_TZ_OFFSET_MINUTES ?? 330);
   const rows: [string, string, string][] = [
     ['Database (DATABASE_URL)', set('DATABASE_URL') ? 'Connected' : 'Missing', 'Neon Postgres, pooled connection'],
@@ -50,6 +54,15 @@ export default async function SettingsPage() {
         </dl>
         <div className="mt-4"><TestEmailButton disabled={!emailOn} /></div>
         <p className="meta mt-3">The test email sends the latest brief to the recipients above. Each week&apos;s brief is emailed once, right after the Friday report; if that fails, the Friday 06:30 run sends it.</p>
+      </section>
+      <section className="panel panel-pad mt-6">
+        <h2 className="h-panel">Failure alerts</h2>
+        <dl className="mt-3 space-y-2.5 text-sm">
+          <div className="flex flex-wrap justify-between gap-x-4 gap-y-1"><dt className="text-ink-muted">Alerts</dt><dd className={alertsOn ? 'text-ink-2' : 'text-rise'}>{alertsOn ? 'Configured' : 'Not configured (needs RESEND_API_KEY and ALERT_EMAIL)'}</dd></div>
+          <div className="flex flex-wrap justify-between gap-x-4 gap-y-1"><dt className="text-ink-muted">Maintainer (ALERT_EMAIL)</dt><dd className="break-all text-ink-2">{alertTo.length ? alertTo.map(maskEmail).join(', ') : 'None'}</dd></div>
+          <div className="flex flex-wrap justify-between gap-x-4 gap-y-1"><dt className="text-ink-muted">Last alert</dt><dd className={lastAlertRow?.status === 'failed' ? 'text-rise' : 'text-ink-2'}>{lastAlertRow ? `${fmtDateTime(lastAlertRow.claimed_at)}: ${lastAlertRow.subject.replace(/^PulsePoint alert: /, '')}${lastAlertRow.status === 'failed' ? ' (not delivered)' : ''}` : 'None'}</dd></div>
+        </dl>
+        <p className="meta mt-3">Emailed when a scheduled run fails, or when a source fails {SOURCE_FAIL_RUNS} runs in a row. At most one email per problem per day; error messages are stripped of anything that looks like a key.</p>
       </section>
       <section className="mt-6 grid gap-5 md:grid-cols-2">
         <div className="panel panel-pad">

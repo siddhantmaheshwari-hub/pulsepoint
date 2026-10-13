@@ -20,7 +20,8 @@ async function emailFor(report: ReportRow): Promise<BriefEmail> {
   });
 }
 
-async function deliver(email: BriefEmail, to: string[]): Promise<void> {
+/** Sends one email through Resend. Throws with Resend's message on failure. */
+export async function deliver(email: BriefEmail, to: string[]): Promise<void> {
   const { error } = await new Resend(env.resendKey!).emails.send({ from: env.briefFrom, to, subject: email.subject, html: email.html, text: email.text });
   if (error) throw new Error(`Resend: ${error.message}`);
 }

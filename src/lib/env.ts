@@ -29,4 +29,5 @@ export const env = {
   get briefFrom() { return process.env.BRIEF_FROM || 'PulsePoint <onboarding@resend.dev>'; },
   get briefRecipients() { return process.env.BRIEF_RECIPIENTS || ''; },
   get teamMembers() { return process.env.TEAM_MEMBERS || ''; },
+  get alertEmail() { return process.env.ALERT_EMAIL || ''; },
 };

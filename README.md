@@ -68,6 +68,7 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 | `APP_URL` | no | link in the email; on Vercel defaults to the production domain |
 | `SLACK_WEBHOOK_URL` | no | optional Friday Slack message |
 | `TEAM_MEMBERS` | no | names for team votes; default `Sumit,Neha,Kabir` |
+| `ALERT_EMAIL` | for alerts | maintainer emailed when a scheduled run fails or a source fails 3 runs in a row (once per problem per day) |
 
 ### 5. Deploy (GitHub + Vercel)
 ```bash
