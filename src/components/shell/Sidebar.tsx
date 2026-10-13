@@ -40,7 +40,7 @@ export function Sidebar({ nextBrief }: { nextBrief: string }) {
     return (
       <li key={href}>
         <Link href={`${href}${qs}`} aria-current={active ? 'page' : undefined}
-          className={`flex items-center gap-3 rounded-ctl px-3 transition-colors ${quiet ? 'h-9 text-[13px]' : 'h-10 text-[14px]'} ${active ? 'bg-paper font-medium text-ink' : `${quiet ? 'text-frame-muted' : 'text-frame-text/80'} hover:bg-frame-2 hover:text-frame-text`}`}>
+          className={`flex items-center gap-3 rounded-ctl px-3 transition-colors ${quiet ? 'h-9 text-[13px]' : 'h-10 text-[14px]'} ${active ? 'bg-paper font-medium text-ink shadow-[0_6px_18px_-10px_rgba(0,0,0,.6)]' : `${quiet ? 'text-frame-muted' : 'text-frame-text/80'} hover:bg-frame-2 hover:text-frame-text`}`}>
           <Icon size={quiet ? 15 : 17} strokeWidth={active ? 2.1 : 1.7} aria-hidden="true" className={active ? 'text-ink' : 'text-frame-muted'} />
           {label}
         </Link>
@@ -54,7 +54,7 @@ export function Sidebar({ nextBrief }: { nextBrief: string }) {
       <ul className="flex flex-col gap-0.5">{items(NAV)}</ul>
       <div className="mt-5">
         <button type="button" aria-expanded={moreOpen} aria-controls={`nav-more-${where}`} onClick={() => setMoreOpen((o) => !o)}
-          className="flex h-8 w-full items-center justify-between rounded-ctl px-3 text-[12px] font-medium uppercase tracking-[0.06em] text-frame-muted hover:text-frame-text">
+          className="flex h-8 w-full items-center justify-between rounded-ctl px-3 text-[12.5px] font-medium text-frame-muted transition-colors hover:text-frame-text">
           More
           <ChevronDown size={14} aria-hidden="true" className={`transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -73,7 +73,7 @@ export function Sidebar({ nextBrief }: { nextBrief: string }) {
         </Link>
         <nav aria-label="Main" className="mt-9">{list('rail')}</nav>
         <div className="mt-auto space-y-4 px-2">
-          <div className="rounded-panel bg-frame-2 p-4">
+          <div className="rounded-panel border border-white/5 bg-gradient-to-b from-frame-2 to-frame-3/60 p-4">
             <p className="text-[12px] text-frame-muted">Next scheduled brief</p>
             <p className="mt-1 text-[14px] font-medium text-frame-text">{nextBrief}</p>
           </div>

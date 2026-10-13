@@ -58,66 +58,70 @@ export function TopBar({ periods, freshness }: { periods: PeriodOpt[]; freshness
     go({ view: 'range', from: a, to: b, m: null });
   }
 
+  const bare = 'h-8 min-w-0 rounded-full bg-transparent px-2.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-sunk focus:outline-none focus-visible:ring-2 focus-visible:ring-violet';
+
   return (
-    <header className="flex flex-wrap items-center gap-2.5 border-b border-line px-5 py-4 md:px-8">
-      <form role="search" className="relative order-1 w-full sm:w-auto sm:flex-1 lg:max-w-[340px]" onSubmit={(e) => { e.preventDefault(); setParam('q', q.trim() || null, '/discussions'); }}>
+    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-2.5 rounded-t-sheet border-b border-line-soft bg-paper/85 px-5 py-3.5 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75 md:px-8 lg:px-10">
+      <form role="search" className="relative order-1 w-full sm:w-52 xl:w-60 2xl:w-72" onSubmit={(e) => { e.preventDefault(); setParam('q', q.trim() || null, '/discussions'); }}>
         <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" aria-hidden="true" />
         <label htmlFor="global-search" className="sr-only">Search discussions, pain points and topics</label>
-        <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search discussions, pain points, topics" className="field w-full pl-9" />
+        <input id="global-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search discussions…" className="field h-10 w-full bg-panel/80 pl-9" />
       </form>
 
+      {/* Period dock: what time span every number on the page refers to */}
       <div className="order-2 flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
-        <div role="group" aria-label="Period type" className="inline-flex h-9 items-center rounded-full border border-line bg-panel p-0.5">
-          {(['week', 'month', 'range'] as View[]).map((v) => (
-            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-              className={`h-full rounded-full px-3 text-[13px] font-medium capitalize transition-colors ${view === v ? 'bg-coal text-coal-text' : 'text-ink-muted hover:text-ink'}`}>
-              {v}
-            </button>
-          ))}
+        <div className="dock w-full min-w-0 sm:w-auto">
+          <div role="group" aria-label="Period type" className="flex shrink-0 items-center">
+            {(['week', 'month', 'range'] as View[]).map((v) => (
+              <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`seg ${view === v ? 'seg-on' : ''}`}>{v}</button>
+            ))}
+          </div>
+          {view !== 'range' && <span className="mx-1 h-5 w-px shrink-0 bg-line" aria-hidden="true" />}
+          {view === 'week' && (
+            <>
+              <label htmlFor="period" className="sr-only">Reporting week</label>
+              <select id="period" className={`${bare} flex-1 cursor-pointer pr-7 sm:flex-none`} value={selected} disabled={!periods.length}
+                onChange={(e) => setParam('report', e.target.value === periods[0]?.id ? null : e.target.value)}>
+                {periods.length ? periods.map((p, i) => <option key={p.id} value={p.id}>{i === 0 ? `This week · ${p.label}` : p.label}</option>) : <option>No reports yet</option>}
+              </select>
+            </>
+          )}
+          {view === 'month' && (
+            <>
+              <label htmlFor="period-month" className="sr-only">Month</label>
+              <input id="period-month" type="month" className={`${bare} flex-1 sm:flex-none`} value={month} max={today.slice(0, 7)} placeholder="YYYY-MM"
+                onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) setParam('m', e.target.value); }} />
+            </>
+          )}
         </div>
 
-        {view === 'week' && (
-          <>
-            <label htmlFor="period" className="sr-only">Reporting week</label>
-            <select id="period" className="field min-w-0 flex-1 cursor-pointer pr-8 sm:flex-none" value={selected} disabled={!periods.length}
-              onChange={(e) => setParam('report', e.target.value === periods[0]?.id ? null : e.target.value)}>
-              {periods.length ? periods.map((p, i) => <option key={p.id} value={p.id}>{i === 0 ? `This week: ${p.label}` : p.label}</option>) : <option>No reports yet</option>}
-            </select>
-          </>
-        )}
-
-        {view === 'month' && (
-          <>
-            <label htmlFor="period-month" className="sr-only">Month</label>
-            <input id="period-month" type="month" className="field min-w-0 flex-1 sm:flex-none" value={month} max={today.slice(0, 7)} placeholder="YYYY-MM"
-              onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) setParam('m', e.target.value); }} />
-          </>
-        )}
-
         {view === 'range' && (
-          <form key={`${from}_${to}`} onSubmit={applyRange} className="flex min-w-0 flex-wrap items-center gap-2" aria-label="Date range">
+          <form key={`${from}_${to}`} onSubmit={applyRange} className="dock min-w-0 max-w-full flex-wrap" aria-label="Date range">
             <label htmlFor="period-from" className="sr-only">Start date</label>
-            <input id="period-from" name="from" type="date" className="field min-w-0" defaultValue={from} max={today} />
+            <input id="period-from" name="from" type="date" className={bare} defaultValue={from} max={today} />
             <span className="text-ink-faint" aria-hidden="true">–</span>
             <label htmlFor="period-to" className="sr-only">End date</label>
-            <input id="period-to" name="to" type="date" className="field min-w-0" defaultValue={to} max={today} />
-            <button className="pill">Apply</button>
-            {rangeError && <span role="alert" className="text-[13px] text-rise">{rangeError}</span>}
+            <input id="period-to" name="to" type="date" className={bare} defaultValue={to} max={today} />
+            <button className="h-8 rounded-full bg-coal px-3.5 text-[13px] font-medium text-coal-text hover:bg-coal-2">Apply</button>
           </form>
         )}
+        {rangeError && <span role="alert" className="text-[13px] text-rise">{rangeError}</span>}
 
-        <button type="button" role="switch" aria-checked={compare} onClick={() => setParam('compare', compare ? 'off' : null)} className="pill whitespace-nowrap">
+        <button type="button" role="switch" aria-checked={compare} onClick={() => setParam('compare', compare ? 'off' : null)} className="pill h-10 whitespace-nowrap">
           <span className={`relative h-4 w-7 rounded-full transition-colors ${compare ? 'bg-violet' : 'bg-line-strong'}`} aria-hidden="true">
-            <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${compare ? 'left-3.5' : 'left-0.5'}`} />
+            <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${compare ? 'left-3.5' : 'left-0.5'}`} />
           </span>
           vs previous {view === 'week' ? 'week' : 'period'}
         </button>
       </div>
 
-      <div className="order-3 ml-auto flex items-center gap-2.5">
-        <Link href="/health" className="pill-quiet hidden md:inline-flex" title={freshness.detail}>
-          <span className={`h-2 w-2 rounded-full ${TONE[freshness.tone]}`} aria-hidden="true" />
-          {freshness.label}
+      <div className="order-3 ml-auto flex items-center gap-2">
+        <Link href="/health" className="hidden h-10 items-center gap-2 rounded-full px-3 text-[13px] font-medium text-ink-muted transition-colors hover:bg-panel hover:text-ink lg:inline-flex" title={`${freshness.label} · ${freshness.detail}`} aria-label={`${freshness.label}. ${freshness.detail}`}>
+          <span className="relative flex h-2 w-2" aria-hidden="true">
+            {freshness.tone === 'ok' && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fall-fill opacity-40" />}
+            <span className={`relative inline-flex h-2 w-2 rounded-full ${TONE[freshness.tone]}`} />
+          </span>
+          <span className="hidden 2xl:inline">{freshness.label}</span>
         </Link>
         <GenerateButton />
       </div>

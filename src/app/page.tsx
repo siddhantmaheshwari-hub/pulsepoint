@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { Activity, ArrowRight, MessagesSquare, Repeat, Sparkle } from 'lucide-react';
 import { LeadSignal } from '@/components/pain/LeadSignal';
 import { PainTable } from '@/components/pain/PainTable';
 import { ExportButtons } from '@/components/shell/ExportButtons';
 import { GenerateButton } from '@/components/shell/GenerateButton';
-import { AiMark, Empty, Metric, SourceChip } from '@/components/ui/bits';
+import { AiMark, Empty, KpiTile, PanelHead, SourceChip } from '@/components/ui/bits';
 import { FeedbackButtons, VoterBar } from '@/components/ui/FeedbackButtons';
 import { TrendTag } from '@/components/ui/Trend';
 import { PeriodView } from '@/components/PeriodView';
@@ -67,89 +67,113 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
   const markdown = briefMarkdown({ periodLabel: fmtPeriod(report.period_start, report.period_end), url: env.appUrl ? `${env.appUrl}/?report=${report.id}` : null, totals: t, metrics, synthesis: s });
   const summary = `${plural(t.pain_discussions, 'discussion')} described a workflow pain or unmet need this week, across ${plural(t.pain_points_tracked, 'pain point')}${compare ? ` (${t.pain_discussions_previous} the week before)` : ''}. ${t.rising} rising, ${t.new} newly observed, ${t.declining} easing.`;
 
+  const painTrend = computeTrend(t.pain_discussions, t.pain_discussions_previous);
+  const coverage = dq.analysis_coverage === null ? null : Math.round(dq.analysis_coverage * 100);
+  const sourceRows = bySource.filter((b) => b.is_enabled || b.cur_collected);
+  const sourceMax = Math.max(1, ...sourceRows.map((b) => Math.max(b.cur_pain, compare ? b.prev_pain : 0)));
+
   return (
-    <div className="space-y-6">
-      {/* Briefing header */}
-      <section className="grid gap-8 pb-4 lg:grid-cols-12 lg:gap-10">
-        <div className="lg:col-span-7">
-          <p className="eyebrow">Friday brief for {fmtPeriod(report.period_start, report.period_end)}{report.version > 1 ? `, version ${report.version}` : ''}</p>
-          <h1 className="mt-3 max-w-[26ch] text-[30px] font-semibold leading-[1.12] tracking-[-0.025em] md:text-[38px]">{s?.headline ?? summary}</h1>
-          <p className="mt-5 max-w-[62ch] text-[16px] leading-relaxed text-ink-2">{s ? summary : 'The AI summary is unavailable for this report; every figure on this page is computed directly from the collected discussions.'}</p>
-          {s?.findings[0] && (
-            <div className="mt-5 max-w-[62ch] border-l-2 border-violet-line pl-4">
-              <AiMark />
-              <p className="mt-2 text-[15px] leading-relaxed text-ink-2"><span className="font-medium text-ink">{s.findings[0].title}.</span> {s.findings[0].insight}</p>
+    <div className="space-y-6 lg:space-y-7">
+      {/* Hero: the one sentence that matters, with the AI reading beside it */}
+      <section className="grid gap-6 xl:grid-cols-12 xl:gap-10">
+        <div className="flex flex-col xl:col-span-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="tag h-7 bg-coal px-3 text-coal-text">Friday brief</span>
+            <span className="tag h-7 border border-line bg-panel px-3 text-ink-2">{fmtPeriod(report.period_start, report.period_end)}</span>
+            {report.version > 1 && <span className="tag h-7 bg-sunk px-3 text-ink-muted">Version {report.version}</span>}
+          </div>
+          <h1 className="mt-5 max-w-[24ch] text-[32px] font-semibold leading-[1.08] tracking-[-0.032em] md:text-[42px]">{s?.headline ?? summary}</h1>
+          <p className="mt-4 max-w-[60ch] text-[16px] leading-relaxed text-ink-2">{s ? summary : 'The AI summary is unavailable for this report; every figure on this page is computed directly from the collected discussions.'}</p>
+          <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-3 pt-6">
+            <ExportButtons markdown={markdown} />
+            {s && <VoterBar voter={voter} team={team} />}
+          </div>
+          <p className="meta mt-4">Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'a manual run' : 'the Friday schedule'}. Numbers are computed by code; AI text is marked.</p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:col-span-5 xl:flex xl:flex-col">
+          {s?.findings[0] ? (
+            <div className="ai-card flex-1 shadow-card">
+              <div className="flex items-center justify-between gap-3"><AiMark /><span className="meta">Finding 1 of {s.findings.length}</span></div>
+              <p className="mt-3 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-ink">{s.findings[0].title}</p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{s.findings[0].insight}</p>
               <FeedbackButtons reportId={report.id} itemType="finding" itemIndex={0} {...votes('finding', 0)} label={s.findings[0].title} />
             </div>
-          )}
-          <p className="meta mt-5">Generated {fmtDateTime(report.generated_at)} IST by {report.trigger === 'manual' ? 'a manual run' : 'the Friday schedule'}. Numbers are computed by code; AI text is marked.</p>
-          <div className="mt-4"><ExportButtons markdown={markdown} /></div>
-          {s && <div className="mt-3"><VoterBar voter={voter} team={team} /></div>}
-        </div>
-        <div className="lg:col-span-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-8 rounded-panel border border-line bg-panel p-6">
-            <Metric value={t.discussions_analyzed} label="Unique discussions analysed" sub={`${t.keyword_mentions} keyword mentions`} />
-            <Metric value={recurring.length} label="Recurring pain points" sub="seen before this week" />
-            <Metric value={t.new} label="Newly observed" sub="no discussions last week" accent={t.new ? '#A06A08' : undefined} />
-            <Metric value={sourcesEnabled} label="Sources monitored" sub={sources.filter((x) => x.is_enabled).map((x) => x.name).join(', ')} />
-            <div className="col-span-2">
-              <div className="mb-2 flex items-baseline justify-between"><p className="text-[13px] font-medium text-ink-2">Analysis coverage</p><p className="meta">{dq.analysis_coverage === null ? 'no discussions' : `${Math.round(dq.analysis_coverage * 100)}% of collected`}</p></div>
-              <SegmentBar height="h-7" segments={[
-                { label: 'Analysed', value: t.discussions_analyzed, className: 'bg-coal text-coal-text' },
-                { label: 'Waiting for analysis', value: Math.max(0, t.discussions_collected - t.discussions_analyzed), className: 'bg-sunk text-ink-muted', hatch: true },
-                { label: 'Duplicates excluded', value: t.duplicates_excluded, className: 'border border-line text-ink-muted' },
-              ]} />
-              <p className="meta mt-2">{t.discussions_collected} collected · {t.duplicates_excluded} duplicates excluded</p>
-            </div>
+          ) : <div className="flex-1" />}
+          <div className="panel px-5 py-4">
+            <div className="mb-2.5 flex items-baseline justify-between gap-3"><p className="text-[13px] font-medium text-ink-2">Analysis coverage</p><p className="text-[13px] font-semibold tabular-nums">{coverage === null ? '—' : `${coverage}%`}</p></div>
+            <SegmentBar height="h-2" showLabels={false} segments={[
+              { label: 'Analysed', value: t.discussions_analyzed, className: 'bg-teal-ink' },
+              { label: 'Waiting for analysis', value: Math.max(0, t.discussions_collected - t.discussions_analyzed), className: 'bg-sunk', hatch: true },
+              { label: 'Duplicates excluded', value: t.duplicates_excluded, className: 'bg-line-strong' },
+            ]} />
+            <p className="meta mt-2.5">{t.discussions_collected} collected · {t.duplicates_excluded} duplicates excluded · {sourcesEnabled} sources: {sources.filter((x) => x.is_enabled).map((x) => x.name).join(', ')}</p>
           </div>
         </div>
       </section>
 
+      {/* The week in four numbers (all computed by code) */}
+      <section aria-label="This week in numbers" className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+        <KpiTile icon={<Activity size={15} aria-hidden="true" />} tone="coal" label="Pain discussions" value={t.pain_discussions}
+          sub={compare ? <span className="inline-flex flex-wrap items-center gap-1.5">{t.pain_discussions_previous} last week <TrendTag trend={painTrend.trend} pct={painTrend.pctChange} size="sm" /></span> : 'this week'} />
+        <KpiTile icon={<Sparkle size={15} aria-hidden="true" />} tone="fresh" label="Newly observed" value={t.new} sub="no discussions last week" accent={t.new ? '#9A6608' : undefined} />
+        <KpiTile icon={<Repeat size={15} aria-hidden="true" />} tone="mist" label="Recurring pain points" value={recurring.length} sub="seen before this week" />
+        <KpiTile icon={<MessagesSquare size={15} aria-hidden="true" />} tone="sand" label="Discussions analysed" value={t.discussions_analyzed} sub={`${t.keyword_mentions} keyword mentions`} />
+      </section>
+
       {/* Lead signal + ranking */}
-      <section className="grid items-start gap-6 lg:grid-cols-12">
-        <div className="lg:col-span-5">
+      <section className="grid gap-6 xl:grid-cols-12">
+        <div className="xl:col-span-5">
           {lead ? <LeadSignal m={lead} history={sparks[lead.pain_point_key] ?? []} labels={sparkLabels} topicName={lead.topic_slug ? topicNames[lead.topic_slug] ?? null : null} periodStart={report.period_start} compare={compare} />
             : <div className="h-full rounded-panel bg-coal p-7 text-coal-muted">No pain discussions this week.</div>}
         </div>
-        <div className="lg:col-span-7">
-          <div className="mb-3 flex items-baseline justify-between"><h2 className="h-panel">What developers struggled with</h2><Link href="/pain-points" className="link inline-flex items-center gap-1 text-[13px]">All pain points<ArrowRight size={13} aria-hidden="true" /></Link></div>
+        <div className="flex flex-col xl:col-span-7">
+          <div className="mb-3 flex items-end justify-between gap-3 px-1">
+            <div><h2 className="h-panel">What developers struggled with</h2><p className="sub">Ranked by unique discussions this week · select a row for evidence</p></div>
+            <Link href="/pain-points" className="link inline-flex shrink-0 items-center gap-1 text-[13px]">All pain points<ArrowRight size={13} aria-hidden="true" /></Link>
+          </div>
           {metrics.length ? <PainTable metrics={metrics} sparks={sparks} sparkLabels={sparkLabels} topics={topicNames} periodStart={report.period_start} compare={compare} variant="compact" limit={6} />
             : <Empty title="No pain points yet">Discussions were collected but none described a workflow pain this week.</Empty>}
         </div>
       </section>
 
       {/* Analytics row */}
-      <section className="grid gap-6 lg:grid-cols-12">
-        <div className="panel panel-pad lg:col-span-5">
-          <h2 className="h-panel">Discussion volume</h2><p className="meta mt-0.5">Unique discussions per week, last 8 weeks</p>
-          <div className="mt-5"><VolumeChart data={volume} /></div>
+      <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-12">
+        <div className="panel panel-pad flex flex-col md:col-span-2 xl:col-span-5">
+          <PanelHead title="Discussion volume" sub="Unique discussions per week, last 8 weeks" />
+          <div className="well-mist mt-5 flex-1 px-4 pb-4 pt-5"><VolumeChart data={volume} /></div>
         </div>
-        <div className="panel panel-pad lg:col-span-4">
-          <h2 className="h-panel">Where pain is surfacing</h2><p className="meta mt-0.5">Pain discussions by source this week</p>
-          <div className="mt-5"><SegmentBar segments={bySource.filter((b) => b.cur_pain > 0).map((b, i) => ({ label: SOURCE_LABEL[b.id], value: b.cur_pain, className: ['bg-coal text-coal-text', 'bg-teal text-ink', 'bg-sunk text-ink-2'][i] ?? 'bg-sunk' }))} /></div>
-          <ul className="mt-5 divide-y divide-line">
-            {bySource.filter((b) => b.is_enabled || b.cur_collected).map((b) => {
+        <div className="panel panel-pad flex flex-col xl:col-span-4">
+          <PanelHead title="Where pain is surfacing" sub="Pain discussions by source this week" action={<Link href="/sources" className="link text-[13px]">Sources</Link>} />
+          <ul className="mt-5 flex flex-1 flex-col justify-center gap-5">
+            {sourceRows.map((b) => {
               const tr = computeTrend(b.cur_pain, b.prev_pain);
               return (
-                <li key={b.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <SourceChip id={b.id} /><span className="flex-1 truncate">{b.name}</span>
-                  <span className="tabular-nums"><span className="font-semibold">{b.cur_pain}</span>{compare && <span className="text-ink-faint"> / {b.prev_pain}</span>}</span>
-                  {compare && <TrendTag trend={tr.trend} pct={tr.pctChange} size="sm" />}
+                <li key={b.id}>
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <SourceChip id={b.id} /><span className="flex-1 truncate font-medium text-ink-2">{b.name}</span>
+                    <span className="tabular-nums"><span className="font-semibold">{b.cur_pain}</span>{compare && <span className="text-ink-faint"> / {b.prev_pain}</span>}</span>
+                    {compare && <TrendTag trend={tr.trend} pct={tr.pctChange} size="sm" />}
+                  </div>
+                  <div className="relative mt-2 h-2 rounded-full bg-sunk" role="img" aria-label={`${b.name}: ${b.cur_pain} pain discussions this week${compare ? `, ${b.prev_pain} the week before` : ''}`}>
+                    {compare && <span className="absolute inset-y-0 left-0 rounded-full border border-ink-faint/40" style={{ width: `${(b.prev_pain / sourceMax) * 100}%` }} />}
+                    <span className="absolute inset-y-0 left-0 rounded-full bg-coal" style={{ width: `${(b.cur_pain / sourceMax) * 100}%` }} />
+                  </div>
                 </li>
               );
             })}
           </ul>
-          <Link href="/sources" className="link mt-3 inline-block text-[13px]">Source details</Link>
+          <p className="meta mt-4">{compare ? 'Solid bar: this week · outline: the week before.' : 'Bar length: pain discussions this week.'} {sourceRows.filter((b) => b.cur_collected).length} of {sourceRows.length} sources returned discussions.</p>
         </div>
-        <div className="panel panel-pad lg:col-span-3">
-          <h2 className="h-panel">Topic movement</h2><p className="meta mt-0.5">Pain discussions per topic</p>
-          <ul className="mt-4 space-y-3.5">
+        <div className="panel panel-pad xl:col-span-3">
+          <PanelHead title="Topic movement" sub="Pain discussions per topic" />
+          <ul className="mt-5 space-y-4">
             {topicMoves.map((tm) => (
               <li key={tm.slug}>
-                <div className="flex items-start justify-between gap-2 text-sm"><span className="leading-snug">{tm.name}</span>{compare ? <TrendTag trend={tm.trend.trend} pct={tm.trend.pctChange} size="sm" /> : null}</div>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <span className="relative h-1.5 flex-1 rounded-full bg-sunk" aria-hidden="true"><span className="absolute inset-y-0 left-0 rounded-full bg-coal" style={{ width: `${(tm.trend.current / tm.max) * 100}%` }} /></span>
-                  <span className="w-12 text-right text-xs tabular-nums text-ink-muted">{tm.trend.current}{compare ? ` / ${tm.trend.previous}` : ''}</span>
+                <div className="flex items-start justify-between gap-2 text-sm"><span className="font-medium leading-snug text-ink-2">{tm.name}</span>{compare ? <TrendTag trend={tm.trend.trend} pct={tm.trend.pctChange} size="sm" /> : null}</div>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="relative h-2 flex-1 rounded-full bg-sunk" aria-hidden="true"><span className="absolute inset-y-0 left-0 rounded-full bg-teal-ink" style={{ width: `${(tm.trend.current / tm.max) * 100}%` }} /></span>
+                  <span className="w-11 text-right text-xs tabular-nums text-ink-muted">{tm.trend.current}{compare ? ` / ${tm.trend.previous}` : ''}</span>
                 </div>
               </li>
             ))}
@@ -158,18 +182,17 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      {/* Opportunities + investigate */}
-      <section className="grid gap-6 lg:grid-cols-12">
-        <div className="panel panel-pad lg:col-span-7">
-          <div className="flex items-baseline justify-between gap-3"><h2 className="h-panel">Underserved problems</h2><Link href="/opportunities" className="link text-[13px]">All opportunities</Link></div>
-          <p className="meta mt-0.5">Flagged by code: 2+ discussions this week and at least half unresolved. One complaint is never enough.</p>
+      {/* Opportunities + investigate: each card hugs its content (no stretched empty space) */}
+      <section className="grid items-start gap-6 xl:grid-cols-12 xl:grid-rows-[auto_1fr]">
+        <div className="panel panel-pad xl:col-span-7 xl:row-start-1">
+          <PanelHead title="Underserved problems" sub="Flagged by code: 2+ discussions this week and at least half unresolved. One complaint is never enough." action={<Link href="/opportunities" className="link text-[13px]">All opportunities</Link>} />
           {underserved.length ? (
-            <ul className="mt-5 divide-y divide-line">
+            <ul className="mt-5 space-y-3">
               {underserved.map((m) => {
                 const whyIndex = s?.underserved.findIndex((u) => u.pain_point_key === m.pain_point_key) ?? -1;
                 const why = whyIndex >= 0 ? s!.underserved[whyIndex] : undefined;
                 return (
-                  <li key={m.pain_point_key} className="py-4 first:pt-0 last:pb-0">
+                  <li key={m.pain_point_key} className="well px-4 py-4">
                     <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-medium">{m.label}</p><span className="meta">{m.unresolved_count} of {m.current_count} unresolved, {m.distinct_sources} source{m.distinct_sources === 1 ? '' : 's'}</span></div>
                     {why && <p className="mt-1.5 text-sm leading-relaxed text-ink-2"><AiMark label="AI" /> <span className="ml-1">{why.why}</span></p>}
                     <EvidenceLinks ids={why?.evidence_ids ?? m.evidence.slice(0, 2).map((e) => e.discussion_id)} map={evidence} />
@@ -180,14 +203,14 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
             </ul>
           ) : <p className="mt-5 text-sm text-ink-muted">No pain point met the underserved rule this week.</p>}
         </div>
-        <div className="rounded-panel border border-violet-line bg-violet-soft/50 p-5 md:p-6 lg:col-span-5">
+        <div className="relative overflow-hidden rounded-panel border border-violet-line/80 bg-gradient-to-b from-violet-soft via-[#F6F4FE] to-panel p-5 shadow-card md:p-6 xl:col-span-5 xl:col-start-8 xl:row-span-2 xl:row-start-1">
           <div className="flex items-center gap-2"><h2 className="h-panel">Worth investigating before Monday</h2><AiMark label="AI" /></div>
           <p className="meta mt-0.5">Suggestions to explore, not decisions. Each cites the discussions behind it.</p>
           {s?.investigate.length ? (
             <ol className="mt-5 space-y-5">
               {s.investigate.map((r, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet text-[12px] font-semibold text-white">{i + 1}</span>
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet text-[12px] font-semibold text-white shadow-[0_6px_14px_-6px_rgba(91,79,224,.8)]">{i + 1}</span>
                   <div className="min-w-0"><p className="font-medium leading-snug">{r.recommendation}</p><p className="mt-1 text-sm leading-relaxed text-ink-2">{r.rationale}</p>
                     {r.pain_point_keys.length > 0 && <p className="meta mt-1">Related: {r.pain_point_keys.map((k) => label.get(k) ?? k).join(', ')}</p>}
                     <EvidenceLinks ids={r.evidence_ids} map={evidence} />
@@ -197,9 +220,8 @@ export default async function BriefPage({ searchParams }: { searchParams: Promis
             </ol>
           ) : <p className="mt-5 text-sm text-ink-muted">No AI suggestions for this report.</p>}
         </div>
+        <DataQualityStrip dq={dq} dropped={s?.dropped_unsupported ?? 0} caveats={s?.caveats ?? []} />
       </section>
-
-      <DataQualityStrip dq={dq} dropped={s?.dropped_unsupported ?? 0} caveats={s?.caveats ?? []} />
     </div>
   );
 }
@@ -238,12 +260,12 @@ function DataQualityStrip({ dq, dropped, caveats }: { dq: DataQuality; dropped: 
   if (dq.insufficient_points) notes.push({ warn: false, text: `${plural(dq.insufficient_points, 'pain point')} rest on fewer than 3 discussions across both weeks.` });
   if (dropped) notes.push({ warn: false, text: `${plural(dropped, 'AI statement')} removed for citing no supplied evidence.` });
   return (
-    <section aria-labelledby="dq-h" className="rounded-panel border border-line bg-sunk/60 px-5 py-4 md:px-6">
+    <section aria-labelledby="dq-h" className="rounded-panel border border-line-soft bg-sunk/60 px-5 py-5 md:px-6 xl:col-span-7 xl:row-start-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="dq-h" className="text-[13px] font-semibold">Data quality</h2>
         <Link href="/health" className="link text-[12px]">System health</Link>
       </div>
-      <ul className="mt-2 grid gap-x-8 gap-y-1.5 text-[13px] md:grid-cols-2">
+      <ul className="mt-3 grid gap-x-8 gap-y-2 text-[13px] md:grid-cols-2">
         {notes.map((n, i) => <li key={i} className={`flex gap-2 ${n.warn ? 'text-rise' : 'text-ink-2'}`}><span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${n.warn ? 'bg-rise' : 'bg-ink-faint'}`} aria-hidden="true" />{n.text}</li>)}
         {caveats.map((c, i) => <li key={`c${i}`} className="flex gap-2 text-ink-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-violet" aria-hidden="true" /><span><span className="sr-only">AI caveat: </span>{c}</span></li>)}
         {!notes.length && !caveats.length && <li className="text-ink-muted">No coverage issues detected for this week.</li>}

@@ -32,14 +32,14 @@ export function VolumeChart({ data, bucket = 'week' }: { data: WeekVolume[]; buc
           return (
             <div key={d.week_end} className="group relative flex flex-1 flex-col items-center justify-end" title={`${what(d)}: ${d.collected} discussions, ${d.pain} describing pain`}>
               <span className={`mb-1.5 text-[11px] font-medium tabular-nums ${many && !cur ? 'hidden' : ''} ${cur ? 'rounded-full bg-coal px-1.5 py-0.5 text-coal-text' : 'text-ink-faint opacity-0 transition-opacity group-hover:opacity-100'}`}>{d.collected}</span>
-              <div className={`relative ${bar} overflow-hidden rounded-full ${cur ? 'bg-teal' : 'bg-teal-soft'}`} style={{ height: h }}>
+              <div className={`relative ${bar} overflow-hidden rounded-full ${cur ? 'bg-teal' : 'bg-teal/35'}`} style={{ height: h }}>
                 <div className={`absolute inset-x-0 bottom-0 rounded-full ${cur ? 'bg-coal' : 'bg-teal-ink/60'}`} style={{ height: ph }} />
               </div>
             </div>
           );
         })}
       </div>
-      <div className={`mt-2 flex ${many ? 'gap-0.5' : 'gap-2'}`}>{data.map((d, i) => <span key={d.week_end} className={`flex-1 whitespace-nowrap text-center text-[11px] ${bucket === 'week' && i === data.length - 1 ? 'font-medium text-ink' : 'text-ink-faint'}`}>{i % labelEvery === 0 ? fmtWeekEnd(d.week_end) : ''}</span>)}</div>
+      <div className={`mt-2 flex ${many ? 'gap-0.5' : 'gap-2'}`}>{data.map((d, i) => <span key={d.week_end} className={`flex-1 ${many ? 'whitespace-nowrap' : 'leading-tight'} text-center text-[11px] ${bucket === 'week' && i === data.length - 1 ? 'font-medium text-ink' : 'text-ink-faint'}`}>{i % labelEvery === 0 ? fmtWeekEnd(d.week_end) : ''}</span>)}</div>
       <figcaption className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-teal" aria-hidden="true" />Unique discussions collected</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-coal" aria-hidden="true" />Describing a pain point</span>
