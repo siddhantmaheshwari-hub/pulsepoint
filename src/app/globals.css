@@ -3,27 +3,46 @@
 @tailwind utilities;
 
 :root { color-scheme: light; }
-html { background: #1E2A30; }
-body { @apply bg-frame text-ink font-sans antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1; }
+html { background: #18242A; }
+body { @apply bg-frame text-ink font-sans antialiased; font-feature-settings: 'tnum' 1, 'cv11' 1, 'ss01' 1; text-rendering: optimizeLegibility; }
 a { color: inherit; text-decoration: none; }
+::selection { background: #D6D0FA; color: #15171C; }
 :focus-visible { outline: 2px solid #5B4FE0; outline-offset: 2px; border-radius: 6px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
 @layer components {
-  .panel { @apply rounded-panel border border-line bg-panel; }
+  /* Surfaces: raised card (panel) → tinted well inside it. Every card on every page uses .panel. */
+  .panel { @apply rounded-panel border border-line-soft bg-panel shadow-card; }
   .panel-pad { @apply p-5 md:p-6; }
+  .panel-hover { @apply transition-shadow duration-200 hover:shadow-card-hover; }
+  .well { @apply rounded-well bg-sunk/70; }
+  .well-mist { @apply rounded-well bg-mist; }
+  .well-sand { @apply rounded-well bg-sand; }
+
+  /* Type */
   .eyebrow { @apply text-[13px] font-medium text-ink-muted; }
-  .h-panel { @apply text-[15px] font-semibold tracking-[-0.01em] text-ink; }
+  .kicker { @apply inline-flex items-center gap-2 text-[12px] font-medium text-ink-muted; }
+  .h-panel { @apply text-[15px] font-semibold tracking-[-0.012em] text-ink; }
+  .sub { @apply mt-0.5 text-[12.5px] text-ink-muted; }
   .meta { @apply text-xs text-ink-muted; }
   .link { @apply text-violet-ink underline-offset-2 hover:underline; }
-  .pill { @apply inline-flex h-9 items-center gap-2 rounded-full border border-line bg-panel px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:border-line-strong; }
-  .pill-dark { @apply inline-flex h-9 items-center gap-2 rounded-full bg-coal px-4 text-[13px] font-medium text-coal-text transition-colors hover:bg-coal-2 disabled:opacity-60; }
+
+  /* Controls */
+  .pill { @apply inline-flex h-9 items-center gap-2 rounded-full border border-line bg-panel px-3.5 text-[13px] font-medium text-ink-2 shadow-[0_1px_1px_rgba(21,23,28,.03)] transition-colors hover:border-line-strong hover:text-ink; }
+  .pill-dark { @apply inline-flex h-9 items-center gap-2 rounded-full bg-coal px-4 text-[13px] font-medium text-coal-text shadow-[0_6px_16px_-8px_rgba(21,23,28,.6)] transition-colors hover:bg-coal-2 disabled:opacity-60; }
   .pill-quiet { @apply inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-ink-muted transition-colors hover:bg-sunk hover:text-ink; }
-  .field { @apply h-9 rounded-full border border-line bg-panel px-3.5 text-[13px] text-ink placeholder:text-ink-faint focus:border-violet focus:outline-none; }
+  .field { @apply h-9 rounded-full border border-line bg-panel px-3.5 text-[13px] text-ink placeholder:text-ink-faint transition-colors focus:border-violet focus:outline-none; }
+  .dock { @apply inline-flex h-10 items-center gap-1 rounded-full border border-line-soft bg-panel p-1 shadow-[0_1px_2px_rgba(21,23,28,.04)]; }
+  .seg { @apply h-8 rounded-full px-3 text-[13px] font-medium capitalize text-ink-muted transition-colors hover:text-ink focus-visible:outline-offset-0; }
+  .seg-on { @apply bg-coal text-coal-text hover:text-coal-text; }
   .tag { @apply inline-flex h-6 items-center gap-1 rounded-full px-2.5 text-[12px] font-medium; }
+  .icon-chip { @apply grid h-8 w-8 shrink-0 place-items-center rounded-[10px]; }
+
   .hatch { background-image: repeating-linear-gradient(-45deg, rgba(23,25,30,.10) 0 1px, transparent 1px 6px); }
   .hatch-dark { background-image: repeating-linear-gradient(-45deg, rgba(242,240,234,.16) 0 1px, transparent 1px 6px); }
-  .ai-mark { @apply inline-flex h-5 items-center gap-1 rounded-full bg-violet-soft px-2 text-[11px] font-semibold text-violet-ink; }
+  .ai-mark { @apply inline-flex h-5 items-center gap-1 rounded-full bg-violet-soft px-2 text-[11px] font-semibold text-violet-ink ring-1 ring-inset ring-violet-line; }
+  /* AI passages sit in a violet-edged reading card so they are never confused with computed numbers */
+  .ai-card { @apply rounded-well border border-violet-line/70 bg-gradient-to-br from-violet-soft/70 via-panel to-panel p-4 md:p-5; }
 }
 @keyframes slidein { from { transform: translateX(16px); opacity: .6 } to { transform: none; opacity: 1 } }
 /* Grid children may shrink below their content width; wide tables scroll inside their own container */

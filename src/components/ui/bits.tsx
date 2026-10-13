@@ -23,19 +23,47 @@ export function Metric({ value, label, sub, accent }: { value: ReactNode; label:
 
 export function PageHeader({ title, lead, children }: { title: string; lead?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-line-soft pb-7">
       <div className="max-w-2xl">
-        <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.025em]">{title}</h1>
-        {lead && <p className="mt-2.5 text-[15px] leading-relaxed text-ink-muted">{lead}</p>}
+        <h1 className="text-[32px] font-semibold leading-[1.08] tracking-[-0.032em] md:text-[38px]">{title}</h1>
+        {lead && <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">{lead}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
   );
 }
 
+/** Card heading: title, one-line subtitle saying what the card answers, optional action on the right. */
+export function PanelHead({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0"><h2 className="h-panel">{title}</h2>{sub && <p className="sub">{sub}</p>}</div>
+      {action && <div className="shrink-0 pt-0.5">{action}</div>}
+    </div>
+  );
+}
+
+const TILE: Record<'coal' | 'fresh' | 'mist' | 'sand', { bg: string; chip: string }> = {
+  coal: { bg: 'bg-sunk/60', chip: 'bg-coal text-coal-text' },
+  fresh: { bg: 'bg-[#FBF5E4]', chip: 'bg-fresh-fill text-coal' },
+  mist: { bg: 'bg-mist', chip: 'bg-teal-ink text-white' },
+  sand: { bg: 'bg-sand', chip: 'bg-panel text-ink-2 ring-1 ring-line' },
+};
+/** Headline number tile: icon chip, label, large light numeral, one line of context. */
+export function KpiTile({ icon, label, value, sub, tone = 'coal', accent }: { icon: ReactNode; label: string; value: ReactNode; sub?: ReactNode; tone?: keyof typeof TILE; accent?: string }) {
+  const t = TILE[tone];
+  return (
+    <div className={`flex min-w-0 flex-col rounded-well p-4 md:p-5 ${t.bg}`}>
+      <div className="flex items-center gap-2"><span className={`icon-chip h-7 w-7 rounded-lg ${t.chip}`}>{icon}</span><p className="truncate text-[13px] font-medium text-ink-2">{label}</p></div>
+      <p className="mt-auto pt-5 text-[44px] font-light leading-none tracking-[-0.045em] md:text-hero" style={accent ? { color: accent } : undefined}>{value}</p>
+      {sub && <div className="mt-2 text-xs text-ink-muted">{sub}</div>}
+    </div>
+  );
+}
+
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-panel border border-dashed border-line-strong px-6 py-10 text-center">
+    <div className="rounded-panel border border-dashed border-line-strong bg-panel/50 px-6 py-10 text-center">
       <p className="text-[15px] font-semibold">{title}</p>
       {children && <div className="mx-auto mt-1.5 max-w-md text-sm text-ink-muted">{children}</div>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}

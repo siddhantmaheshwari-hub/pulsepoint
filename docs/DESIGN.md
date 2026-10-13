@@ -8,7 +8,8 @@ PulsePoint turns developer conversations into a weekly intelligence briefing. Th
 2. **Numbers by code, words by AI, and you can always tell which is which.** Violet is reserved for interactive controls and AI interpretation. Every AI passage carries the "AI reading" mark; source material is never tinted violet.
 3. **Colour carries meaning, never decoration.** More complaints is bad news, so *rising* is vermilion, not green. Colour is always paired with an icon or word.
 4. **One focal point per screen.** The single dark charcoal panel marks what matters most (the lead signal on the brief, the run log on System health). Never more than one dark panel per screen.
-5. **Precision over ornament.** 1px borders, controlled radii, almost no shadow, no gradients. Premium comes from alignment, spacing and typography.
+5. **Precision over ornament.** Hairline borders, controlled radii, one soft card shadow, and only two gradients (the lead panel's glow in its trend colour, and the violet wash of AI cards). Premium comes from alignment, spacing, typography and surface depth.
+6. **Three surface levels.** Warm canvas (paper) → raised cards (panel, hairline + soft ambient shadow) → tinted wells inside cards (sunk, mist, sand) for charts, tiles and grouped items. Depth replaces boxes-inside-boxes.
 
 ## Reference synthesis
 
@@ -25,14 +26,15 @@ PulsePoint turns developer conversations into a weekly intelligence briefing. Th
 
 | Token | Value | Use |
 |---|---|---|
-| `frame` | `#1E2A30` (2: `#273740`, 3: `#33454E`) | App frame, sidebar |
+| `frame` | `#18242A` (2: `#22313A`, 3: `#2E404A`) | App frame, sidebar |
 | `frame-text` / `frame-muted` | `#D5DDDC` / `#8FA2A4` | Text on the frame |
-| `paper` | `#F5F3EE` | The sheet (page background) |
-| `panel` | `#FFFEFC` | Panels and cards on the sheet |
-| `sunk` | `#EFECE5` | Recessed areas, neutral tags, empty tracks |
+| `paper` | `#F3F1EB` | The sheet (page canvas) |
+| `panel` | `#FFFEFB` | Raised cards on the sheet (`shadow-card`) |
+| `sunk` | `#EEEBE3` | Recessed wells, neutral tags, empty tracks |
+| `mist` / `sand` | `#EAF1EF` / `#F7F2E7` | Tinted wells: chart backgrounds, headline tiles, table header |
 | `line` / `line-strong` | `#E5E1D8` / `#D3CEC2` | 1px borders and dividers |
 | `ink` / `ink-2` | `#17191E` / `#3B4049` | Primary and secondary text |
-| `ink-muted` / `ink-faint` | `#5A5F68` / `#666B74` | Metadata. Both pass 4.5:1 on panel and paper |
+| `ink-muted` / `ink-faint` | `#5A5F68` / `#60656E` | Metadata. Both pass 4.5:1 on panel, paper and wells |
 | `coal` (2, 3, text, muted) | `#1B1D21` … | The single focal dark panel; primary buttons |
 | `violet` / `violet-ink` / `violet-soft` | `#5B4FE0` / `#4337C9` / `#ECE9FD` | Interactive elements, links, AI interpretation |
 | `teal` / `teal-soft` / `teal-ink` | `#7FA6A2` / `#E3EEEC` / `#3F6B67` | Neutral data (volume, history, previous periods) |
@@ -47,9 +49,9 @@ Geist Sans, loaded locally via the `geist` package. Tabular figures throughout (
 
 | Role | Size / weight |
 |---|---|
-| Brief headline | 30 → 38 px, 600, −0.025em, max 26ch |
-| Page title | 34 px, 600, −0.025em |
-| Key metric numerals | 40 px (lead panel 56 px), **300**, −0.03em |
+| Brief headline | 32 → 42 px, 600, −0.032em, max 24ch |
+| Page title | 32 → 38 px, 600, −0.032em, hairline rule below |
+| Key metric numerals | Headline tiles 44 → 56 px, lead panel 64 px, **200–300**, −0.045em |
 | Panel heading (`.h-panel`) | 15 px, 600 |
 | Body | 15–16 px, line-height 1.6 |
 | Table / list text | 14 px |
@@ -59,8 +61,8 @@ Sentence case everywhere. No all-caps eyebrows.
 
 ### Space, shape, depth
 - Spacing on a 4 px grid; panels pad 20–24 px; sections separate by 24 px; page gutters 20 / 32 / 40 px.
-- Radii: sheet 28 px, panels 18 px, inner controls 10 px, pills fully rounded. Nothing else.
-- Shadows: only the sheet (soft, low) and floating layers (popovers, drawer). Panels use borders, not shadows.
+- Radii: sheet 28 px, cards 20 px, wells 14 px, inner controls 10 px, pills fully rounded. Nothing else.
+- Shadows: the sheet; cards (`shadow-card`: 1px lift + long faint ambient); floating layers (`shadow-pop`); the dark lead panel. Nothing heavier.
 
 ### Motion
 - Colour and hover transitions only; the evidence drawer slides in over 180 ms.
@@ -68,7 +70,11 @@ Sentence case everywhere. No all-caps eyebrows.
 
 ## Components
 
-- **Shell:** slate frame + sidebar (9 sections) + ivory sheet. Top bar has search, week selector, "vs previous week" switch, data freshness, Generate report.
+- **Shell:** slate frame + sidebar (4 main sections + collapsible "More") + ivory sheet. Sticky, frosted top bar: search; a **period dock** (Week | Month | Range segmented control + period picker in one pill); "vs previous" switch; freshness dot (label at 2xl); Generate report.
+- **Brief composition:** hero (headline + summary, AI reading card and coverage beside it) → a row of four **KpiTiles** → lead panel + ranking → volume / sources / topics → underserved + data quality beside the investigate column. Multi-column from 1280 px (xl); stacked or 2-up below.
+- **KpiTile:** tinted well, icon chip, label, large light numeral, one line of context.
+- **PanelHead:** title + one-line subtitle naming the question the card answers + optional action.
+- **AI card (`.ai-card`):** violet hairline and wash; holds every AI-written finding.
 - **Metric:** light numeral, label, one line of context. Never a number without a label saying what it counts.
 - **TrendTag:** icon + deterministic percentage (or "New"); colour by meaning; screen-reader text names the trend.
 - **PainTable:** compact (dashboard) and full (Pain points) variants; sortable headers with `aria-sort`; rows open the evidence drawer.

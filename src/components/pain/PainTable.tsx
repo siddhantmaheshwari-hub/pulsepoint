@@ -54,7 +54,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
   );
 
   return (
-    <div>
+    <div className="flex flex-1 flex-col">
       {variant === 'full' && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="pt-source">Source</label>
@@ -79,12 +79,12 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
       )}
 
       {rows.length === 0 ? (
-        <p className="rounded-panel border border-dashed border-line-strong px-6 py-8 text-center text-sm text-ink-muted">No pain points match these filters.</p>
+        <p className="rounded-panel border border-dashed border-line-strong bg-panel/50 px-6 py-8 text-center text-sm text-ink-muted">No pain points match these filters.</p>
       ) : (
-        <div className="relative overflow-x-auto rounded-panel border border-line bg-panel">
+        <div className="panel relative flex-1 overflow-x-auto">
           <table className={`w-full text-[14px] ${variant === 'full' ? 'min-w-[760px]' : 'sm:min-w-[520px]'}`}>
             <caption className="sr-only">Pain points ranked by unique discussions. Select a row to see evidence.</caption>
-            <thead className="border-b border-line text-left text-[12px] text-ink-muted">
+            <thead className="border-b border-line-soft bg-sand/50 text-left text-[12px] text-ink-muted">
               <tr>
                 {sortBtn('label', 'Pain point', 'text-left pl-5')}
                 {sortBtn('current', unit === 'week' ? 'This week' : 'This period')}
@@ -95,12 +95,12 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
                 {variant === 'full' && <th scope="col" className="px-3 py-3 pr-5 font-medium">Evidence</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="divide-y divide-line-soft">
               {rows.map((m) => {
                 const recurring = m.first_observed ? Date.parse(m.first_observed) < Date.parse(periodStart) : false;
                 return (
-                  <tr key={m.pain_point_key} className="group cursor-pointer transition-colors hover:bg-[#FAF8F3]" onClick={() => setOpen(m)}>
-                    <th scope="row" className={`max-w-[340px] ${pad} pl-4 sm:pl-5 pr-3 text-left font-normal`}>
+                  <tr key={m.pain_point_key} className="group cursor-pointer transition-colors hover:bg-sand/60" onClick={() => setOpen(m)}>
+                    <th scope="row" className={`${variant === 'compact' ? 'max-w-[280px]' : 'max-w-[340px]'} ${pad} pl-4 sm:pl-5 pr-3 text-left font-normal`}>
                       <button type="button" className="block w-full text-left" onClick={(e) => { e.stopPropagation(); setOpen(m); }}>
                         <span className="block truncate font-medium text-ink group-hover:text-violet-ink">{m.label}</span>
                         <span className="mt-0.5 flex flex-wrap gap-x-2.5 text-xs text-ink-muted">
@@ -113,7 +113,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
                     </th>
                     <td className="px-3 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2.5">
-                        <span className="relative hidden h-1.5 w-16 rounded-full bg-sunk sm:block" aria-hidden="true">
+                        <span className={`relative hidden h-1.5 w-16 rounded-full bg-sunk ${variant === 'compact' ? 'xl:block' : 'sm:block'}`} aria-hidden="true">
                           {compare && <span className="absolute inset-y-0 left-0 rounded-full border border-ink-faint/50" style={{ width: `${(m.previous_count / max) * 100}%` }} />}
                           <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(m.current_count / max) * 100}%`, background: TREND_META[m.trend].fill }} />
                         </span>
@@ -122,7 +122,7 @@ export function PainTable({ metrics, sparks, sparkLabels, topics, periodStart, c
                     </td>
                     {compare && variant === 'full' && <td className="px-3 py-3.5 text-right tabular-nums text-ink-muted">{m.previous_count}</td>}
                     {compare && <td className="whitespace-nowrap px-3 py-3.5 text-right">{variant === 'full' && <span className="mr-2 text-xs tabular-nums text-ink-muted">{m.abs_change > 0 ? '+' : ''}{m.abs_change}</span>}<TrendTag trend={m.trend} pct={m.pct_change} size="sm" /></td>}
-                    <td className={`px-3 py-3.5 pr-5 ${variant === 'compact' ? 'hidden sm:table-cell' : ''}`}><Sparkline values={sparks[m.pain_point_key] ?? []} color={TREND_META[m.trend].fill === '#C9C5BB' ? '#8E939B' : TREND_META[m.trend].fill} label={`${m.label} weekly history`} /></td>
+                    <td className={`px-3 py-3.5 pr-5 ${variant === 'compact' ? 'hidden sm:table-cell' : ''}`}><Sparkline width={72} values={sparks[m.pain_point_key] ?? []} color={TREND_META[m.trend].fill === '#C9C5BB' ? '#8E939B' : TREND_META[m.trend].fill} label={`${m.label} weekly history`} /></td>
                     {variant === 'full' && <td className="px-3 py-3.5 text-right tabular-nums">{m.unresolved_count}<span className="text-ink-faint">/{m.current_count}</span></td>}
                     {variant === 'full' && <td className="px-3 py-3.5 pr-5"><Sufficiency value={m.sufficiency} /><span className="block text-[11px] text-ink-faint">{m.distinct_sources} source{m.distinct_sources === 1 ? '' : 's'}{m.verified_share !== null ? `, ${Math.round(m.verified_share * 100)}% verified` : ''}</span></td>}
                   </tr>

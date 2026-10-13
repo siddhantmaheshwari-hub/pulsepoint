@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { ArrowRight, Info } from 'lucide-react';
+import { Activity, ArrowRight, Info, Layers, MessagesSquare, Sparkle } from 'lucide-react';
 import { PainTable } from '@/components/pain/PainTable';
-import { Empty, Metric } from '@/components/ui/bits';
+import { Empty, KpiTile, PanelHead } from '@/components/ui/bits';
 import { VolumeChart } from '@/components/viz/VolumeChart';
 import { fmtDate, fmtWeekEnd, plural } from '@/lib/format';
 import { getPeriodVolume, loadWindowMetrics, monitoringSince } from '@/lib/period-data';
@@ -59,50 +59,54 @@ export async function PeriodView({ period, compare }: { period: Ok; compare: boo
   const prevLabel = `the previous ${days} days`;
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-8 pb-2 lg:grid-cols-12 lg:gap-10">
-        <div className="lg:col-span-7">
-          <Header label={label} days={days} />
-          <h1 className="mt-3 max-w-[30ch] text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] md:text-[34px]">
+    <div className="space-y-6 lg:space-y-7">
+      <section className="grid gap-6 xl:grid-cols-12 xl:gap-10">
+        <div className="xl:col-span-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="tag h-7 bg-coal px-3 text-coal-text">{period.view === 'month' ? 'Month' : 'Range'}</span>
+            <span className="tag h-7 border border-line bg-panel px-3 text-ink-2">{label} · {days} days</span>
+            <span className="tag h-7 bg-sunk px-3 text-ink-muted">Numbers only</span>
+          </div>
+          <h1 className="mt-5 max-w-[26ch] text-[32px] font-semibold leading-[1.08] tracking-[-0.032em] md:text-[40px]">
             {plural(pain, 'discussion')} described a workflow pain or unmet need, across {plural(active.length, 'pain point')}.
           </h1>
-          <p className="mt-4 max-w-[62ch] text-[16px] leading-relaxed text-ink-2">
+          <p className="mt-4 max-w-[60ch] text-[16px] leading-relaxed text-ink-2">
             {compare ? `${painPrev} in ${prevLabel}. ` : ''}{count('rising')} rising, {count('new')} newly observed, {count('declining')} easing. Counts are unique discussions, computed by code.
           </p>
-          <div className="mt-5">{note}</div>
+        </div>
+        <div className="flex flex-col gap-3 xl:col-span-5 xl:pt-12">
+          {note}
           {(gap || runsToNow) && (
-            <ul className="mt-4 space-y-1.5 text-[13px] text-rise">
+            <ul className="space-y-2 rounded-well border border-fresh-fill/40 bg-[#FBF5E4] px-5 py-4 text-[13px] leading-relaxed text-fresh">
               {gap === 'current' && <li>Monitoring began on {fmtDate(new Date(since!).toISOString(), { day: 'numeric', month: 'short' })}, partway through this period. Earlier days were not collected (hatched in the chart), so counts are incomplete and “New” labels may be overstated.</li>}
               {gap === 'previous' && <li>Part of the comparison period is before monitoring began ({fmtDate(new Date(since!).toISOString(), { day: 'numeric', month: 'short' })}), so “New” and rising labels may be overstated.</li>}
               {runsToNow && <li>This period runs to {fmtWeekEnd(w.currentEnd.toISOString())}; days after today have no data yet.</li>}
             </ul>
           )}
         </div>
-        <div className="lg:col-span-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-8 rounded-panel border border-line bg-panel p-6">
-            <Metric value={pain} label="Pain discussions" sub={compare ? `${painPrev} in ${prevLabel}` : undefined} />
-            <Metric value={active.length} label="Pain points" sub="with at least one discussion" />
-            <Metric value={count('new')} label="Newly observed" sub={`none in ${prevLabel}`} accent={count('new') ? '#A06A08' : undefined} />
-            <Metric value={analysed} label="Unique discussions analysed" sub={`${days} days`} />
-          </div>
-        </div>
+      </section>
+
+      <section aria-label={`${label} in numbers`} className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+        <KpiTile icon={<Activity size={15} aria-hidden="true" />} tone="coal" label="Pain discussions" value={pain} sub={compare ? `${painPrev} in ${prevLabel}` : `${days} days`} />
+        <KpiTile icon={<Layers size={15} aria-hidden="true" />} tone="mist" label="Pain points" value={active.length} sub="with at least one discussion" />
+        <KpiTile icon={<Sparkle size={15} aria-hidden="true" />} tone="fresh" label="Newly observed" value={count('new')} sub={`none in ${prevLabel}`} accent={count('new') ? '#9A6608' : undefined} />
+        <KpiTile icon={<MessagesSquare size={15} aria-hidden="true" />} tone="sand" label="Discussions analysed" value={analysed} sub={`${days} days`} />
+      </section>
+
+      <section className="panel panel-pad">
+        <PanelHead title="Discussion volume" sub={`Unique discussions per ${bucketDays === 1 ? 'day' : 'week'}, ${label}`} />
+        <div className="well-mist mt-5 px-4 pb-4 pt-5"><VolumeChart data={volume} bucket={bucketDays === 1 ? 'day' : 'week'} /></div>
       </section>
 
       <section>
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="h-panel">What developers struggled with</h2>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 px-1">
+          <div><h2 className="h-panel">What developers struggled with</h2><p className="sub">Compared with {prevLabel} · select a row for evidence</p></div>
           <Link href={discussionsHref} className="link inline-flex items-center gap-1 text-[13px]">Open these discussions<ArrowRight size={13} aria-hidden="true" /></Link>
         </div>
         {metrics.length
           ? <PainTable metrics={metrics} sparks={series} sparkLabels={periods.map(fmtWeekEnd)} topics={topicNames} periodStart={w.currentStart.toISOString()} compare={compare} unit="period" />
           : <Empty title="No pain points in this period">Discussions may have been collected, but none described a workflow pain.</Empty>}
-        <p className="meta mt-3 max-w-3xl">Compared with {prevLabel}. Rising or easing needs a change of at least 2 discussions and 25%; a zero baseline shows “New”. The 8-week sparkline comes from stored weekly reports.</p>
-      </section>
-
-      <section className="panel panel-pad">
-        <h2 className="h-panel">Discussion volume</h2>
-        <p className="meta mt-0.5">Unique discussions per {bucketDays === 1 ? 'day' : 'week'}, {label}</p>
-        <div className="mt-5"><VolumeChart data={volume} bucket={bucketDays === 1 ? 'day' : 'week'} /></div>
+        <p className="meta mt-3 max-w-3xl px-1">Rising or easing needs a change of at least 2 discussions and 25%; a zero baseline shows “New”. The 8-week sparkline comes from stored weekly reports.</p>
       </section>
     </div>
   );

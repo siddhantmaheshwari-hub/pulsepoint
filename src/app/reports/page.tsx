@@ -52,7 +52,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <button className="pill-dark">Compare</button>
         </form>
         {a && b && a.id !== b.id ? (
-          <div className="relative mt-5 overflow-x-auto">
+          <div className="relative mt-5 overflow-x-auto" tabIndex={0} role="region" aria-label="Week comparison table (scrolls sideways on small screens)">
             <table className="w-full min-w-[520px] text-sm">
               <thead className="border-b border-line text-left text-xs text-ink-muted"><tr><th className="py-2 font-medium">Pain point</th><th className="py-2 text-right font-medium">A: {fmtPeriod(a.period_start, a.period_end, false)}</th><th className="py-2 text-right font-medium">B: {fmtPeriod(b.period_start, b.period_end, false)}</th><th className="py-2 pl-4 font-medium">A vs B</th></tr></thead>
               <tbody className="divide-y divide-line">{comp.map((x) => <tr key={x.k}><td className="py-2.5">{x.label}</td><td className="py-2.5 text-right font-semibold tabular-nums">{x.t.current}</td><td className="py-2.5 text-right tabular-nums text-ink-muted">{x.t.previous}</td><td className="py-2.5 pl-4"><TrendTag trend={x.t.trend} pct={x.t.pctChange} size="sm" /></td></tr>)}</tbody>
@@ -62,7 +62,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         ) : <p className="mt-4 text-sm text-ink-muted">Pick two different weeks.</p>}
       </section>
 
-      <div className="relative overflow-x-auto rounded-panel border border-line bg-panel">
+      <div className="panel relative overflow-x-auto" tabIndex={0} role="region" aria-label="All stored briefs (scrolls sideways on small screens)">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="border-b border-line text-left text-xs text-ink-muted"><tr><th className="px-5 py-3 font-medium">Week</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Generated</th><th className="px-3 py-3 text-right font-medium">Pain discussions</th><th className="px-3 py-3 text-right font-medium">Rising</th><th className="px-3 py-3 text-right font-medium">New</th><th className="px-3 py-3 font-medium">Votes useful</th><th className="px-5 py-3 font-medium">AI summary</th></tr></thead>
           <tbody className="divide-y divide-line">
