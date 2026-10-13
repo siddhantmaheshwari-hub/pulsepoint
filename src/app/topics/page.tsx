@@ -5,6 +5,7 @@ import { one, type SP } from '@/lib/params';
 import { getKeywordCounts, getReport, listTopics, windowFor } from '@/lib/queries';
 import { toggleKeyword, toggleTopic } from './actions';
 import { AddKeywordForm, AddTopicForm } from './forms';
+export const metadata = { title: 'Topics & keywords' };
 
 export default async function TopicsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();

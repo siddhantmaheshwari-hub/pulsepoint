@@ -8,7 +8,7 @@ import { missingEnv } from '@/lib/env';
 import { fmtPeriod, timeAgo } from '@/lib/format';
 import { getFreshness, listPeriods } from '@/lib/queries';
 
-export const metadata: Metadata = { title: 'PulsePoint', description: 'Developer community intelligence: weekly pain points, trends and evidence.' };
+export const metadata: Metadata = { title: { default: 'PulsePoint', template: '%s · PulsePoint' }, description: 'Developer community intelligence: weekly pain points, trends and evidence.' };
 export const dynamic = 'force-dynamic';
 
 function nextFridayBrief(now = new Date()) {

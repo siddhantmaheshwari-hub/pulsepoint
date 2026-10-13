@@ -7,6 +7,7 @@ import { fmtDateTime, fmtPeriod } from '@/lib/format';
 import { one, type SP } from '@/lib/params';
 import { getMetrics, getUsefulness, listReports } from '@/lib/queries';
 import { computeTrend } from '@/lib/trends';
+export const metadata = { title: 'Weekly reports' };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();

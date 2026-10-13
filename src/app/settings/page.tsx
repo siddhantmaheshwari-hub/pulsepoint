@@ -7,6 +7,7 @@ import { ANALYSIS_VERSION } from '@/lib/pipeline/prompts';
 import { TREND_RULES } from '@/lib/trends';
 import { parseTeam } from '@/lib/votes';
 import { TestEmailButton } from './TestEmailButton';
+export const metadata = { title: 'Settings' };
 
 // Read-only view of configuration. Secret values are never read into the page — only whether they are set.
 const set = (k: string) => Boolean(process.env[k]);

@@ -8,6 +8,7 @@ import { compareOn, one, type SP } from '@/lib/params';
 import { getReport, getSourceBreakdown, listRuns, windowFor } from '@/lib/queries';
 import { computeTrend } from '@/lib/trends';
 import { toggleSource } from '../topics/actions';
+export const metadata = { title: 'Sources' };
 
 const NOTE: Record<string, string> = {
   hackernews: 'Official Algolia search API. Stories and comments are folded into one thread per discussion.',

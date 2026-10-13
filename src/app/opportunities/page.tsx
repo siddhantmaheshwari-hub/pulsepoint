@@ -7,6 +7,7 @@ import { missingEnv } from '@/lib/env';
 import { fmtDate, fmtPeriod } from '@/lib/format';
 import { compareOn, type SP } from '@/lib/params';
 import type { EvidenceItem, TopicMetricRow } from '@/lib/types';
+export const metadata = { title: 'Opportunities' };
 
 export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();

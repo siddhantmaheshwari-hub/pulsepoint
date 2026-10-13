@@ -21,6 +21,8 @@ import { getFeedback, getSourceBreakdown, getWeeklyVolume, type DataQuality } fr
 import { computeTrend } from '@/lib/trends';
 import { getVoting } from '@/lib/voter';
 import { SOURCE_LABEL, type EvidenceItem, type SourceId, type TopicMetricRow } from '@/lib/types';
+// The root page shares the layout's segment, so the layout's title template doesn't apply here.
+export const metadata = { title: 'Friday brief · PulsePoint' };
 
 export default async function BriefPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();

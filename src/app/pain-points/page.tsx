@@ -6,6 +6,7 @@ import { loadBrief } from '@/lib/brief';
 import { missingEnv } from '@/lib/env';
 import { fmtPeriod } from '@/lib/format';
 import { compareOn, type SP } from '@/lib/params';
+export const metadata = { title: 'Pain points' };
 
 export default async function PainPointsPage({ searchParams }: { searchParams: Promise<SP> }) {
   const missing = missingEnv();

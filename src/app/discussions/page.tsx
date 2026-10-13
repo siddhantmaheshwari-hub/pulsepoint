@@ -8,6 +8,7 @@ import { one, type SP } from '@/lib/params';
 import { parsePeriod, periodParams } from '@/lib/periods';
 import { getMetrics, getReport, listDiscussions, listTopics, windowFor, type DiscussionRow } from '@/lib/queries';
 import { SOURCE_LABEL, type SourceId } from '@/lib/types';
+export const metadata = { title: 'Discussions' };
 
 const KIND: Record<string, string> = { workflow_pain: 'Workflow pain', unmet_need: 'Unmet need', isolated_bug: 'Isolated bug', how_to_question: 'How-to question', opinion: 'Opinion', not_relevant: 'Not relevant' };
 const RES: Record<string, string> = { unresolved: 'Unresolved', partially_resolved: 'Partly resolved', resolved: 'Resolved', unknown: 'Status unclear' };

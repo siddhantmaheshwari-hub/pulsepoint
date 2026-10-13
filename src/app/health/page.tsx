@@ -5,6 +5,7 @@ import { SegmentBar } from '@/components/viz/SegmentBar';
 import { missingEnv } from '@/lib/env';
 import { fmtDate, fmtDateTime, timeAgo } from '@/lib/format';
 import { getFreshness, getHealthTotals, listRuns, type RunRow } from '@/lib/queries';
+export const metadata = { title: 'System health' };
 
 const STATUS: Record<string, { dot: string; text: string; label: string }> = {
   succeeded: { dot: 'bg-fall-fill', text: 'text-fall', label: 'Succeeded' }, partial: { dot: 'bg-fresh-fill', text: 'text-fresh', label: 'Partial' },
