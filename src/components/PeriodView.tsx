@@ -28,7 +28,7 @@ export async function PeriodView({ period, compare }: { period: Ok; compare: boo
   const note = (
     <div className="flex gap-3 rounded-panel border border-violet-line bg-violet-soft/50 px-5 py-4 text-sm text-ink-2">
       <Info size={16} className="mt-0.5 shrink-0 text-violet-ink" aria-hidden="true" />
-      <p>Numbers only. The AI-written brief is produced weekly — <Link href={weekHref} className="link">switch to Week</Link> to read it.</p>
+      <p>Numbers only. The AI-written brief is produced weekly — <Link href={weekHref} className="link underline underline-offset-2">switch to Week</Link> to read it.</p>
     </div>
   );
 

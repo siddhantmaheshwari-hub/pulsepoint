@@ -99,7 +99,7 @@ export function VoterBar({ voter, team }: { voter: string | null; team: string[]
   return (
     <p className="text-[13px] text-ink-muted print:hidden">
       {voter ? <>Voting as <span className="font-medium text-ink">{voter}</span> · </> : <>Team votes on AI findings: </>}
-      <button type="button" onClick={() => setChanging(true)} className="link">{voter ? 'change' : 'choose your name'}</button>
+      <button type="button" onClick={() => setChanging(true)} className="link underline">{voter ? 'change' : 'choose your name'}</button>
     </p>
   );
 }
