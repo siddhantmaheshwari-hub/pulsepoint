@@ -5,6 +5,7 @@ import { env } from '@/lib/env';
 import { fmtDateTime, fmtWeekEnd } from '@/lib/format';
 import { ANALYSIS_VERSION } from '@/lib/pipeline/prompts';
 import { TREND_RULES } from '@/lib/trends';
+import { parseTeam } from '@/lib/votes';
 import { TestEmailButton } from './TestEmailButton';
 
 // Read-only view of configuration. Secret values are never read into the page — only whether they are set.
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
     ['Stack Exchange key', set('STACKEXCHANGE_KEY') ? 'Set (10,000 requests/day)' : 'Not set (300 requests/day)', 'Optional'],
     ['GitHub token', set('GITHUB_TOKEN') ? 'Set' : 'Not set', 'Optional; enables GitHub Issues'],
     ['Slack notification', set('SLACK_WEBHOOK_URL') ? 'On' : 'Off', 'Optional Friday message'],
+    ['Team (TEAM_MEMBERS)', parseTeam(env.teamMembers).join(', '), set('TEAM_MEMBERS') ? 'Who can vote on AI findings' : 'Default team; set TEAM_MEMBERS to change'],
   ];
   return (
     <div className="max-w-4xl">

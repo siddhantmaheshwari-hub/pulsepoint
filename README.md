@@ -67,6 +67,7 @@ Click **Collect & generate brief**. The first run backfills 15 days; if analysis
 | `BRIEF_FROM` | no | default `PulsePoint <onboarding@resend.dev>` |
 | `APP_URL` | no | link in the email; on Vercel defaults to the production domain |
 | `SLACK_WEBHOOK_URL` | no | optional Friday Slack message |
+| `TEAM_MEMBERS` | no | names for team votes; default `Sumit,Neha,Kabir` |
 
 ### 5. Deploy (GitHub + Vercel)
 ```bash

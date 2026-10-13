@@ -3,6 +3,7 @@ import { db } from './db';
 import { BACKFILL_DAYS } from './pipeline/config';
 import { ANALYSIS_VERSION } from './pipeline/prompts';
 import type { SourceId, Synthesis, TopicMetricRow } from './types';
+import { tallyRows, type Tally, type VoteRow } from './votes';
 
 const WEEK = 7 * 86_400_000;
 
@@ -191,14 +192,14 @@ export function windowFor(report: ReportRow | null) {
 }
 
 export type FeedbackType = 'finding' | 'underserved' | 'recommendation';
-/** Current ratings for one report, keyed "type:index" → useful. */
-export async function getFeedback(reportId: string): Promise<Record<string, boolean>> {
-  const rows = await db()<{ item_type: FeedbackType; item_index: number; useful: boolean }[]>`
-    select item_type, item_index, useful from finding_feedback where report_id = ${reportId}`;
-  return Object.fromEntries(rows.map((r) => [`${r.item_type}:${r.item_index}`, r.useful]));
+/** Team votes for one report, keyed "type:index" → who voted 👍 and 👎. */
+export async function getFeedback(reportId: string): Promise<Record<string, Tally>> {
+  const rows = await db()<VoteRow[]>`
+    select item_type, item_index, voter, useful from finding_feedback where report_id = ${reportId}`;
+  return tallyRows([...rows]);
 }
 
-/** Usefulness per report: how many rated items Sumit found useful (Nine Checks #5). */
+/** Usefulness per report across all voters: how many votes said useful (Nine Checks #5). */
 export async function getUsefulness(): Promise<Map<string, { rated: number; useful: number }>> {
   const rows = await db()<{ report_id: string; rated: number; useful: number }[]>`
     select report_id, count(*)::int as rated, count(*) filter (where useful)::int as useful from finding_feedback group by report_id`;

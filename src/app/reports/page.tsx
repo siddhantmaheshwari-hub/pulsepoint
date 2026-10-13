@@ -36,11 +36,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <section className="panel panel-pad mb-8 flex flex-wrap items-baseline gap-x-8 gap-y-2" aria-labelledby="use-h">
         <div>
           <h2 id="use-h" className="h-panel">Usefulness of AI findings</h2>
-          <p className="meta mt-0.5">Your Useful / Not useful ratings on findings and recommendations across all briefs.</p>
+          <p className="meta mt-0.5">The team’s Useful / Not useful votes on findings and recommendations across all briefs.</p>
         </div>
         {allRated.rated ? (
-          <p className="text-sm"><span className="text-numeral font-light">{Math.round((allRated.useful / allRated.rated) * 100)}%</span> <span className="text-ink-muted">rated useful ({allRated.useful} of {allRated.rated} items)</span></p>
-        ) : <p className="text-sm text-ink-muted">No ratings yet. Rate findings on the brief to track whether PulsePoint is worth reading.</p>}
+          <p className="text-sm"><span className="text-numeral font-light">{Math.round((allRated.useful / allRated.rated) * 100)}%</span> <span className="text-ink-muted">of votes say useful ({allRated.useful} of {allRated.rated} votes)</span></p>
+        ) : <p className="text-sm text-ink-muted">No votes yet. Vote on findings in the brief to track whether PulsePoint is worth reading.</p>}
       </section>
       <section className="panel panel-pad mb-8" aria-labelledby="cmp-h">
         <h2 id="cmp-h" className="h-panel">Compare two weeks</h2>
@@ -63,7 +63,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
       <div className="relative overflow-x-auto rounded-panel border border-line bg-panel">
         <table className="w-full min-w-[820px] text-sm">
-          <thead className="border-b border-line text-left text-xs text-ink-muted"><tr><th className="px-5 py-3 font-medium">Week</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Generated</th><th className="px-3 py-3 text-right font-medium">Pain discussions</th><th className="px-3 py-3 text-right font-medium">Rising</th><th className="px-3 py-3 text-right font-medium">New</th><th className="px-3 py-3 font-medium">Rated useful</th><th className="px-5 py-3 font-medium">AI summary</th></tr></thead>
+          <thead className="border-b border-line text-left text-xs text-ink-muted"><tr><th className="px-5 py-3 font-medium">Week</th><th className="px-3 py-3 font-medium">Version</th><th className="px-3 py-3 font-medium">Generated</th><th className="px-3 py-3 text-right font-medium">Pain discussions</th><th className="px-3 py-3 text-right font-medium">Rising</th><th className="px-3 py-3 text-right font-medium">New</th><th className="px-3 py-3 font-medium">Votes useful</th><th className="px-5 py-3 font-medium">AI summary</th></tr></thead>
           <tbody className="divide-y divide-line">
             {reports.map((r) => (
               <tr key={r.id} className="hover:bg-[#FAF8F3]">
@@ -73,7 +73,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <td className="px-3 py-3 text-right tabular-nums"><span className="font-semibold">{r.totals.pain_discussions}</span><span className="text-ink-faint"> / {r.totals.pain_discussions_previous}</span></td>
                 <td className="px-3 py-3 text-right tabular-nums">{r.totals.rising}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{r.totals.new}</td>
-                <td className="px-3 py-3 tabular-nums text-ink-muted">{(() => { const u = usefulness.get(r.id); return u ? `${u.useful} of ${u.rated}` : 'Not rated'; })()}</td>
+                <td className="px-3 py-3 tabular-nums text-ink-muted">{(() => { const u = usefulness.get(r.id); return u ? `${u.useful} of ${u.rated}` : 'No votes'; })()}</td>
                 <td className="px-5 py-3 text-ink-muted">{r.status === 'complete' ? 'Included' : 'Unavailable'}</td>
               </tr>
             ))}
