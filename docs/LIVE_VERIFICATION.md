@@ -130,3 +130,7 @@ Visual redesign only (no data, API, database or logic changes); built on the `re
 | Interactions: evidence drawer + Escape, "More" menu, Week ↔ Month switch, vote name prompt | ✅ all work, 0 errors |
 | Tests · typecheck · lint · build | ✅ 86 passed · clean · clean · clean |
 | `/api/cron/daily` without the secret | ✅ 401 |
+
+## Premium brief v2 (15 Oct 2026, merged to `main`)
+
+Numbered sections, "This week in brief" strip (`src/lib/highlights.ts`), thick-bar ranking, topic and platform rings, "How we counted". Verified live after deploy: brief, month view, Pain points and Settings at 1440 and 390 px with no horizontal scroll and 0 console errors; axe 0 violations on the brief (1440 + 390); evidence drawer opens from the lead panel and from the new bar rows, Escape closes, "More" toggles, Week ↔ Month works, vote name prompt appears; `/api/cron/daily` 401 without the secret; 93 tests pass.
