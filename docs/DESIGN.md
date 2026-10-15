@@ -72,7 +72,12 @@ Sentence case everywhere. No all-caps eyebrows.
 
 - **Shell:** slate frame + sidebar (4 main sections + collapsible "More") + ivory sheet. Sticky, frosted top bar: search; a **period dock** (Week | Month | Range segmented control + period picker in one pill); "vs previous" switch; freshness dot (label at 2xl); Generate report.
 - **Brief composition:** hero (headline + summary, AI reading card and coverage beside it) → a row of four **KpiTiles** → lead panel + ranking → volume / sources / topics → underserved + data quality beside the investigate column. Multi-column from 1280 px (xl); stacked or 2-up below.
-- **KpiTile:** tinted well, icon chip, label, large light numeral, one line of context.
+- **Brief structure (v2):** numbered editorial sections with Geist Mono labels — 01 This week in brief · 02 Most talked-about problems · 03 Biggest change · 04 Worth investigating · 05 Underserved · 06 By topic · 07 Volume · 08 By platform · 09 How we counted.
+- **This week in brief:** one deterministic sentence + four callouts (Biggest, Growing fastest, Least solved, New this week) from `src/lib/highlights.ts`; each slot prefers a different pain point and says "Nothing qualifies" rather than inventing one.
+- **PainBars:** thick bars by unique discussions, coloured by trend meaning, last-week tick, each row opens the evidence drawer.
+- **Ring:** donut for topic share and platform mix; always labelled, values exposed to screen readers; not-connected platforms listed as text.
+- **How we counted:** four counting stats (read, describe a pain, set aside, platforms 3/6) + counting rules + data-quality notes in one card.
+- **KpiTile:** tinted well, icon chip, label, large light numeral, unit, one line of context, optional mini visual (Sparkline, Dashes, Meter).
 - **PanelHead:** title + one-line subtitle naming the question the card answers + optional action.
 - **AI card (`.ai-card`):** violet hairline and wash; holds every AI-written finding.
 - **Metric:** light numeral, label, one line of context. Never a number without a label saying what it counts.

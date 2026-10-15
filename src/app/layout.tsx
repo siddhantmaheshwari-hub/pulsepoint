@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 import { Suspense } from 'react';
 import './globals.css';
@@ -38,7 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="en" className={GeistSans.variable}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
         <div className="flex min-h-screen flex-col lg:flex-row">
           <div className="contents" data-print-hide><Suspense><Sidebar nextBrief={nextFridayBrief()} /></Suspense></div>

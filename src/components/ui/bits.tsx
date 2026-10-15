@@ -49,14 +49,53 @@ const TILE: Record<'coal' | 'fresh' | 'mist' | 'sand', { bg: string; chip: strin
   mist: { bg: 'bg-mist', chip: 'bg-teal-ink text-white' },
   sand: { bg: 'bg-sand', chip: 'bg-panel text-ink-2 ring-1 ring-line' },
 };
-/** Headline number tile: icon chip, label, large light numeral, one line of context. */
-export function KpiTile({ icon, label, value, sub, tone = 'coal', accent }: { icon: ReactNode; label: string; value: ReactNode; sub?: ReactNode; tone?: keyof typeof TILE; accent?: string }) {
+/** Headline number tile: icon chip, label, large light numeral, one line of context, optional mini chart. */
+export function KpiTile({ icon, label, value, unit, sub, viz, tone = 'coal', accent }: {
+  icon: ReactNode; label: string; value: ReactNode; unit?: string; sub?: ReactNode; viz?: ReactNode; tone?: keyof typeof TILE; accent?: string;
+}) {
   const t = TILE[tone];
   return (
     <div className={`flex min-w-0 flex-col rounded-well p-4 md:p-5 ${t.bg}`}>
-      <div className="flex items-center gap-2"><span className={`icon-chip h-7 w-7 rounded-lg ${t.chip}`}>{icon}</span><p className="truncate text-[13px] font-medium text-ink-2">{label}</p></div>
-      <p className="mt-auto pt-5 text-[44px] font-light leading-none tracking-[-0.045em] md:text-hero" style={accent ? { color: accent } : undefined}>{value}</p>
+      <div className="flex items-center gap-2"><span className={`icon-chip h-7 w-7 rounded-lg ${t.chip}`}>{icon}</span><p className="min-w-0 text-[13px] font-medium leading-tight text-ink-2">{label}</p></div>
+      <p className="mt-auto flex items-baseline gap-1.5 pt-5">
+        <span className="text-[44px] font-light leading-none tracking-[-0.045em] md:text-hero" style={accent ? { color: accent } : undefined}>{value}</span>
+        {unit && <span className="text-[13px] text-ink-muted">{unit}</span>}
+      </p>
       {sub && <div className="mt-2 text-xs text-ink-muted">{sub}</div>}
+      {viz && <div className="mt-3">{viz}</div>}
+    </div>
+  );
+}
+
+/** Numbered editorial section label ("01 · This week in brief") with an optional note on the right. */
+export function SectionHead({ n, title, aside, id }: { n: number; title: string; aside?: ReactNode; id?: string }) {
+  return (
+    <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-1">
+      <h2 id={id} className="flex items-baseline gap-2.5 font-mono text-[11.5px] font-medium uppercase tracking-[0.14em] text-ink-muted">
+        <span className="text-ink-faint">{String(n).padStart(2, '0')}</span><span aria-hidden="true" className="text-line-strong">·</span><span className="text-ink-2">{title}</span>
+      </h2>
+      {aside && <div className="text-[12px] text-ink-muted">{aside}</div>}
+    </div>
+  );
+}
+
+/** Thin progress track with an accessible value; used inside KPI tiles. */
+export function Meter({ value, max, color = '#3F6B67', label }: { value: number; max: number; color?: string; label: string }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div className="h-1.5 rounded-full bg-ink/[.07]" role="img" aria-label={`${label}: ${value} of ${max}`}>
+      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+}
+
+/** Row of dashes: `on` of `total` highlighted (e.g. 4 new of 6 pain points). */
+export function Dashes({ on, total, color = '#C4472A', label }: { on: number; total: number; color?: string; label: string }) {
+  const n = Math.min(total, 12);
+  const lit = total > 12 ? Math.round((on / total) * 12) : on;
+  return (
+    <div className="flex gap-1" role="img" aria-label={`${label}: ${on} of ${total}`}>
+      {Array.from({ length: n }, (_, i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i < lit ? color : 'rgba(21,23,28,.08)' }} />)}
     </div>
   );
 }

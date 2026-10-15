@@ -7,6 +7,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
       },
       colors: {
         frame: { DEFAULT: '#18242A', 2: '#22313A', 3: '#2E404A', text: '#DCE4E3', muted: '#93A6A8' },
